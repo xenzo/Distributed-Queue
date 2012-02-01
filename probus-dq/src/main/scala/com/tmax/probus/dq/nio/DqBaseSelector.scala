@@ -1,4 +1,4 @@
-package com.tmax.probus.nio
+package com.tmax.probus.dq.nio
 
 import java.nio.channels.{SelectableChannel, Selector}
 import collection.JavaConversions
@@ -7,7 +7,7 @@ import collection.immutable.List
 /**
  * Base selector
  */
-class DqBaseSelector extends Runnable {
+abstract class DqBaseSelector extends Runnable {
     private[this] val fSelector: Selector = Selector.open()
 
     def register(aChannel: SelectableChannel, aOp: Int, aBody: () => Unit) {
