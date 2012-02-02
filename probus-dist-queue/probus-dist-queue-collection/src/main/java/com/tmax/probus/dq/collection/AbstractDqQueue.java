@@ -47,7 +47,8 @@ import java.util.logging.Logger;
  * <p/>
  * 그리고 주의 할 점은 큐에 데이터가 추가되고 완전히 비워지면 새로운 Node의 리스트가 생성될 수 있다는 것이다. 왜냐하면 데이터는 응답을
  * 전송 받은 후에 삭제하기 때문에 Node 리스트가 계속 존재하는데 논리적 삭제로 인해서 head와 tail이 초기화 상태에서 다시 데이터를
- * 받게 되면 새로운 Node 리스트가 생성되고 기존에 남겨진 Node들은 내부의 Map을 통해서만 접근 가능하게 된다.
+ * 받게 되면 새로운 Node 리스트가 생성되고 기존에 남겨진 Node들은 내부의 Map을 통해서만 접근 가능하게 된다. <br/>
+ * 또 중복 데이터의 추가가 불가능하다. 응답이 온 경우 중복데이터의 삭제가 애매하여 그렇게 하였다.
  * @param <K> the key type
  * @param <E> the element type
  * @author Kim, Dong iL
@@ -59,7 +60,7 @@ class AbstractDqQueue<K, E extends IDqElement<K>>
     /** Logger for this class. */
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.dq.collection");
     /** The repo_. */
-    private final ConcurrentMap<K, Node<K, E>> repo_ = new ConcurrentHashMap<K, Node<K, E>>();
+    private final ConcurrentMap<K, Node<K, E>> repo_;
     /** 큐의 head이다. */
     private final Node<K, E> head_;
     /** The tail_. */
@@ -87,15 +88,16 @@ class AbstractDqQueue<K, E extends IDqElement<K>>
      * Instantiates a new dq backup queue.
      */
     protected AbstractDqQueue() {
-        this(Integer.MAX_VALUE);
+        this(Integer.MAX_VALUE, 128);
     }
 
     /**
      * Instantiates a new dq backup queue.
      * @param maxValue the max value
      */
-    protected AbstractDqQueue(final int maxValue) {
+    protected AbstractDqQueue(final int maxValue, final int mapCapacity) {
         if (maxValue <= 0) throw new IllegalArgumentException();
+        repo_ = new ConcurrentHashMap<K, Node<K, E>>(mapCapacity);
         capacity = maxValue;
         head_ = tail_ = NULL_NODE;
     }
