@@ -13,7 +13,22 @@
 package com.tmax.probus.dq.collection;
 
 /**
- *
+ * The Interface IDqMap.
+ * @param <K> the key type
+ * @param <V> the value type
  */
 public interface IDqMap<K, V> {
+    /**
+     * Gets the.
+     * @param key the key
+     * @return the e
+     */
+    V getValue(K key);
+
+    /**
+     * Removes the item.
+     * @param key the key
+     * @return the e
+     */
+    V removeValue(K key);
 }
