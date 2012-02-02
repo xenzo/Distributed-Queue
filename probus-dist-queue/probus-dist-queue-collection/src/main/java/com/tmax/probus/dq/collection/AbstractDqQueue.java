@@ -31,17 +31,36 @@ import java.util.logging.Logger;
 
 
 /**
- * The Class DqBackupQueue.
+ * Distributed SQM 구현을 위한 Queue 컬렉션이다. LinkedBlockingDeque를 참고하여 만들었으므로 참고하기
+ * 바란다.
+ * <p/>
+ * 다른 점은 LinkedBlockingDeque로부터 재정의한 메소드들은 데이터의 추가는 하지만 삭제는 하지 않고 삭제하는 척만
+ * 한다.</br> 데이터의 삭제는 내부에 정의한 Map을 통하여 일어난다. 이렇게 한 이유는 큐에 들어온 데이터를 원격지로 전송하고 응답을
+ * 받은 후에 삭제해야 하기 때문이다. <br/>
+ * 삭제 작업이 Queue처럼 head, tail에서만 이루어지는 것이 아니라 응답에 따라 무작위로 일어나기 때문에 Map을 사용했다.<br/>
+ * 데이터 추가시에는 Map과 Queue에 저장되고 데이터 제거시에는 head와 tail의 참조값만 변경하여 데이터가 제거된 것처럼 보이게
+ * 하고 실제로 응답이 도착하면 데이터를 제거한다.
+ * <p/>
+ * 또 한가지는 원형큐 형태로 정의되어 있다는 것이다.<br/>
+ * head와 tail은 하나의 같은 빈 노드이고 이 값은 바뀌지 않고 head의 next값과 tail의 prev 값만 변경하여
+ * position을 바꾼다.
+ * <p/>
+ * 그리고 주의 할 점은 큐에 데이터가 추가되고 완전히 비워지면 새로운 Node의 리스트가 생성될 수 있다는 것이다. 왜냐하면 데이터는 응답을
+ * 전송 받은 후에 삭제하기 때문에 Node 리스트가 계속 존재하는데 논리적 삭제로 인해서 head와 tail이 초기화 상태에서 다시 데이터를
+ * 받게 되면 새로운 Node 리스트가 생성되고 기존에 남겨진 Node들은 내부의 Map을 통해서만 접근 가능하게 된다.
  * @param <K> the key type
  * @param <E> the element type
+ * @author Kim, Dong iL
+ * @see java.util.concurrent.LinkedBlockingQueue,
+ *      java.util.concurrent.LinkedBlockingDeque
  */
-public class AbstractDqQueue<K, E extends IDqElement<K>>
+class AbstractDqQueue<K, E extends IDqElement<K>>
         extends AbstractQueue<E> implements IDqQueue<K, E> {
     /** Logger for this class. */
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.dq.collection");
     /** The repo_. */
     private final ConcurrentMap<K, Node<K, E>> repo_ = new ConcurrentHashMap<K, Node<K, E>>();
-    /** The head_. */
+    /** 큐의 head이다. */
     private final Node<K, E> head_;
     /** The tail_. */
     private final Node<K, E> tail_;
@@ -167,7 +186,7 @@ public class AbstractDqQueue<K, E extends IDqElement<K>>
     }
 
     // (non-Javadoc)
-    // @see com.tmax.probus.dq.collection.IDqMap#get(java.lang.Object)
+    // @see com.tmax.probus.dq.collection.IDqQueue#findReal(java.lang.Object)
     @Override public E findReal(final K key) {
         final Node<K, E> node = repo_.get(key);
         if (node == null) return null;
@@ -178,6 +197,14 @@ public class AbstractDqQueue<K, E extends IDqElement<K>>
     // @see com.tmax.probus.dq.collection.IDqQueue#FullSize()
     @Override public int fullSize() {
         return fullCount.intValue();
+    }
+
+    // (non-Javadoc)
+    // @see com.tmax.probus.dq.collection.IDqMap#get(java.lang.Object)
+    @Override public E get(final K key) {
+        final Node<K, E> node = repo_.get(key);
+        if (node == null) return null;
+        return node.element;
     }
 
     // (non-Javadoc)
@@ -409,6 +436,14 @@ public class AbstractDqQueue<K, E extends IDqElement<K>>
     }
 
     // (non-Javadoc)
+    // @see com.tmax.probus.dq.collection.IDqMap#put(java.lang.Object, java.lang.Object)
+    @Override public E put(final K key, final E value) {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "put");
+        // XXX must do something
+        return null;
+    }
+
+    // (non-Javadoc)
     // @see java.util.concurrent.BlockingDeque#putFirst(java.lang.Object)
     @Override public void putFirst(final E e) throws InterruptedException {
         if (e == null) throw new NullPointerException();
@@ -467,7 +502,7 @@ public class AbstractDqQueue<K, E extends IDqElement<K>>
         try {
             final Node<K, E> node = repo_.get(((E) o).getId());
             if (node == null || !node.isReal) return false;
-            unlinkSolidly(node);
+            unlinkReal(node);
             return linkFirst(node) && unlinkFirst() != null;
         } finally {
             lock.unlock();
@@ -491,7 +526,7 @@ public class AbstractDqQueue<K, E extends IDqElement<K>>
         try {
             final Node<K, E> node = repo_.get(((E) o).getId());
             if (node == null || !node.isReal) return false;
-            unlinkSolidly(node);
+            unlinkReal(node);
             return linkLast(node) && unlinkLast() != null;
         } finally {
             lock.unlock();
@@ -499,11 +534,11 @@ public class AbstractDqQueue<K, E extends IDqElement<K>>
     }
 
     // (non-Javadoc)
-    // @see com.tmax.probus.dq.collection.IDqMap#removeItem(java.lang.Object)
+    // @see com.tmax.probus.dq.collection.IDqQueue#removeReal(java.lang.Object)
     @Override public E removeReal(final K key) {
         final Node<K, E> node = repo_.get(key);
         if (node == null) throw new NoSuchElementException();
-        unlinkSolidly(node);
+        unlinkReal(node);
         return node.element;
     }
 
@@ -603,11 +638,29 @@ public class AbstractDqQueue<K, E extends IDqElement<K>>
         }
     }
 
+    Node<K, E> replaceReal(final Node<K, E> node) {
+        if (node == NULL_NODE) throw new IllegalArgumentException();
+        final Lock lock = lock_;
+        lock.lock();
+        try {
+            final Node<K, E> existNode = repo_.get(node.getId());
+            if (existNode == null || node == existNode) return null;
+            node.prev = existNode.prev;
+            node.next = existNode.next;
+            node.prev.next = node;
+            node.next.prev = node;
+            gc(existNode);
+            return existNode;
+        } finally {
+            lock.unlock();
+        }
+    }
+
     /**
      * Unlink solidly.
      * @param node the node
      */
-    void unlinkSolidly(final Node<K, E> node) {
+    void unlinkReal(final Node<K, E> node) {
         if (node == NULL_NODE) throw new IllegalArgumentException();
         final Lock lock = lock_;
         lock.lock();
@@ -618,8 +671,7 @@ public class AbstractDqQueue<K, E extends IDqElement<K>>
             final Node<K, E> n = node.next;
             p.next = n;
             n.prev = p;
-            node.prev = node;
-            node.next = node;
+            gc(node);
             fullCount.decrementAndGet();
             if (node.isReal) count.decrementAndGet();
             node.isReal = false;
@@ -627,7 +679,16 @@ public class AbstractDqQueue<K, E extends IDqElement<K>>
         } finally {
             lock.unlock();
         }
-    };
+    }
+
+    /**
+     * help GC.
+     * @param node the exist node
+     */
+    private void gc(final Node<K, E> node) {
+        node.prev = node;
+        node.next = node;
+    }
 
     /**
      * Checks if is full.

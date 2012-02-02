@@ -27,4 +27,18 @@ public interface IDqQueue<K, V>
      * @return the int
      */
     int fullSize();
+
+    /**
+     * Gets the.
+     * @param key the key
+     * @return the e
+     */
+    V findReal(K key);
+
+    /**
+     * Removes the item.
+     * @param key the key
+     * @return the e
+     */
+    V removeReal(K key);
 }

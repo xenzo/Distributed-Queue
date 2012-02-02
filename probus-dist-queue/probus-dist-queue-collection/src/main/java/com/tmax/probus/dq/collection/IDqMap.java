@@ -21,14 +21,15 @@ public interface IDqMap<K, V> {
     /**
      * Gets the.
      * @param key the key
-     * @return the e
+     * @return the v
      */
-    V findReal(K key);
+    V get(K key);
 
     /**
-     * Removes the item.
+     * Put.
      * @param key the key
-     * @return the e
+     * @param value the value
+     * @return the v
      */
-    V removeReal(K key);
+    V put(K key, V value);
 }
