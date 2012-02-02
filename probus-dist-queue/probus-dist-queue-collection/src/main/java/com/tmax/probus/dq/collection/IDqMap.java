@@ -1,5 +1,5 @@
 /*
- * IDqElement.java Version 1.0 Jan 31, 2012
+ * IDqMap.java Version 1.0 Feb 2, 2012
  * *
  * Copyright (c) 2010 by Tmax Soft co., Ltd.
  * All rights reserved.
@@ -13,12 +13,7 @@
 package com.tmax.probus.dq.collection;
 
 /**
- * The Interface IDqElement.
+ *
  */
-public interface IDqElement<K> {
-    /**
-     * Gets the id.
-     * @return the id
-     */
-    K getId();
+public interface IDqMap<K, V> {
 }
