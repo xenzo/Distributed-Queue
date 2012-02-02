@@ -1,5 +1,5 @@
 /*
- * IDqMap.java Version 1.0 Feb 2, 2012
+ * IDqStack.java Version 1.0 Feb 3, 2012
  * *
  * Copyright (c) 2010 by Tmax Soft co., Ltd.
  * All rights reserved.
@@ -13,22 +13,19 @@
 package com.tmax.probus.dq.collection;
 
 /**
- * The Interface IDqMap.
- * @param <K> the key type
- * @param <V> the value type
+ * The Interface IDqStack.
+ * @param <E> the element type
  */
-public interface IDqMap<K, V> {
+public interface IDqStack<E> {
     /**
-     * Gets the.
-     * @param key the key
+     * Pop.
      * @return the e
      */
-    V findReal(K key);
+    E pop();
 
     /**
-     * Removes the item.
-     * @param key the key
-     * @return the e
+     * Push.
+     * @param e the e
      */
-    V removeReal(K key);
+    void push(E e);
 }

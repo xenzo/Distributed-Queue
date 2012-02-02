@@ -1,5 +1,5 @@
 /*
- * IDqMap.java Version 1.0 Feb 2, 2012
+ * IDqQueue.java Version 1.0 Feb 2, 2012
  * *
  * Copyright (c) 2010 by Tmax Soft co., Ltd.
  * All rights reserved.
@@ -12,23 +12,19 @@
  */
 package com.tmax.probus.dq.collection;
 
-/**
- * The Interface IDqMap.
- * @param <K> the key type
- * @param <V> the value type
- */
-public interface IDqMap<K, V> {
-    /**
-     * Gets the.
-     * @param key the key
-     * @return the e
-     */
-    V findReal(K key);
 
+import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.BlockingQueue;
+
+
+/**
+ *
+ */
+public interface IDqQueue<K, V>
+        extends BlockingDeque<V>, BlockingQueue<V>, IDqMap<K, V>, IDqStack<V> {
     /**
-     * Removes the item.
-     * @param key the key
-     * @return the e
+     * Full size.
+     * @return the int
      */
-    V removeReal(K key);
+    int fullSize();
 }
