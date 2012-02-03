@@ -37,8 +37,8 @@ public class DqCollectionsTest {
      * Logger for this class
      */
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.dq.collection");
-    static BlockingDeque<Elem> deque;
-    static IDqSolidOperator<String, Elem> operator;
+    private static BlockingDeque<Elem> deque;
+    private static IDqSolidOperator<String, Elem> operator;
 
     @BeforeClass public static void startUp() {
     }
@@ -166,8 +166,8 @@ public class DqCollectionsTest {
         assertEquals(5004, operator.fullSize());
     }
 
-    static class Elem implements IDqElement<String> {
-        private String id_;
+    private static class Elem implements IDqElement<String> {
+        private final String id_;
 
         /**
          *

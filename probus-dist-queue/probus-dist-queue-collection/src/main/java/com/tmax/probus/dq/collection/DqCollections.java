@@ -13,6 +13,8 @@
 package com.tmax.probus.dq.collection;
 
 
+import static java.util.logging.Level.*;
+
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -37,23 +39,40 @@ import java.util.logging.Logger;
 
 
 /**
- * A factory for creating DqQueue objects.
+ * A factory for creating DqCollection objects.
+ * @since 1.5
+ * @author Kim, Dong iL
+ * @see IDqSolidOperator
+ * @see IDqMap
+ * @see IDqStack
+ * @see IDqElement
  */
 public class DqCollections {
     /**
-     * Convert2 solid operator.
+     * cast to IDqSolidOperator.
      * @param <K> the key type
      * @param <E> the element type
      * @param collection the collection
      * @return the i dq solid operator
      */
-    @SuppressWarnings("unchecked")
-    public static <K, E extends IDqElement<K>> IDqSolidOperator<K, E> convert2SolidOperator(final Collection<E> collection) {
-        return (IDqSolidOperator<K, E>) collection;
+    @SuppressWarnings("unchecked") public static <K, E extends IDqElement<K>> IDqSolidOperator<K, E> convert2SolidOperator(final Collection<E> collection) {
+        return convert2Collection(collection, IDqSolidOperator.class);
     }
 
     /**
-     * New blocking deque.
+     * cast to specified collection.
+     * @param <T> the generic type
+     * @param <E> the element type
+     * @param original the original
+     * @param claz the claz
+     * @return the t
+     */
+    public static <T, E> T convert2Collection(Collection<E> original, Class<T> claz) {
+        return claz.cast(original);
+    }
+
+    /**
+     * new Blocking Deque.
      * @param <E> the element type
      * @param id the id
      * @return the blocking deque
@@ -63,7 +82,7 @@ public class DqCollections {
     }
 
     /**
-     * New blocking deque.
+     * new Blocking Deque.
      * @param <E> the element type
      * @param id the id
      * @param maxSize the max size
@@ -75,7 +94,7 @@ public class DqCollections {
     }
 
     /**
-     * New blocking queue.
+     * new Blocking Queue.
      * @param <E> the element type
      * @param id the id
      * @return the blocking queue
@@ -85,7 +104,7 @@ public class DqCollections {
     }
 
     /**
-     * New blocking queue.
+     * new Blocking Queue.
      * @param <E> the element type
      * @param id the id
      * @param maxSize the max size
@@ -97,7 +116,7 @@ public class DqCollections {
     }
 
     /**
-     * New dq map.
+     * new Map.
      * @param <K> the key type
      * @param <E> the element type
      * @param id the id
@@ -108,7 +127,7 @@ public class DqCollections {
     }
 
     /**
-     * New dq map.
+     * new Map.
      * @param <K> the key type
      * @param <E> the element type
      * @param id the id
@@ -121,7 +140,7 @@ public class DqCollections {
     }
 
     /**
-     * New dq stack.
+     * new Stack.
      * @param <E> the element type
      * @param id the id
      * @return the i dq stack
@@ -131,7 +150,7 @@ public class DqCollections {
     }
 
     /**
-     * New dq stack.
+     * new Stack.
      * @param <E> the element type
      * @param id the id
      * @param maxSize the max size
@@ -146,9 +165,9 @@ public class DqCollections {
      * Distributed SQM 구현을 위한 Queue 컬렉션이다. LinkedBlockingDeque를 참고하여 만들었으므로 참고하기
      * 바란다.
      * <p/>
-     * 다른 점은 LinkedBlockingDeque로부터 재정의한 메소드들은 데이터의 추가는 하지만 삭제는 하지 않고 삭제하는 척만
-     * 한다.</br> 데이터의 삭제는 내부에 정의한 Map을 통하여 일어난다. 이렇게 한 이유는 큐에 들어온 데이터를 원격지로 전송하고
-     * 응답을 받은 후에 삭제해야 하기 때문이다. <br/>
+     * 다른 점은 이 클래스에 있는 LinkedBlockingDeque에 존재하는 메소드들은 데이터의 추가는 하지만 삭제는 하지 않고
+     * 삭제하는 척만 한다.</br> 데이터의 삭제는 내부에 정의한 Map을 통하여 일어난다. 이렇게 한 이유는 큐에 들어온 데이터를
+     * 원격지로 전송하고 응답을 받은 후에 삭제해야 하기 때문이다. <br/>
      * 삭제 작업이 Queue처럼 head, tail에서만 이루어지는 것이 아니라 응답에 따라 무작위로 일어나기 때문에 Map을 사용했다.
      * <br/>
      * 데이터 추가시에는 Map과 Queue에 저장되고 데이터 제거시에는 head와 tail의 참조값만 변경하여 데이터가 제거된 것처럼
@@ -229,8 +248,12 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.AbstractQueue#addAll(java.util.Collection)
-        @Override
-        public final boolean addAll(final Collection<? extends E> collection) {
+        /**
+         * Adds the all.
+         * @param collection the collection
+         * @return true, if successful
+         */
+        @Override public final boolean addAll(final Collection<? extends E> collection) {
             if (collection == null) throw new NullPointerException();
             if (collection == this) throw new IllegalArgumentException();
             final Lock lock = lock_;
@@ -247,22 +270,19 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#addFirst(java.lang.Object)
-        @Override
-        public final void addFirst(final E e) {
+        @Override public final void addFirst(final E e) {
             if (!offerFirst(e)) throw new IllegalStateException("FULL-or-EXISTS");
         }
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#addLast(java.lang.Object)
-        @Override
-        public final void addLast(final E e) {
+        @Override public final void addLast(final E e) {
             if (!offerLast(e)) throw new IllegalStateException("FULL-or-EXISTS");
         }
 
         // (non-Javadoc)
         // @see java.util.AbstractQueue#clear()
-        @Override
-        public final void clear() {
+        @Override public final void clear() {
             final Lock lock = lock_;
             lock.lock();
             try {
@@ -276,32 +296,27 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.AbstractCollection#contains(java.lang.Object)
-        @Override
-        public final boolean contains(final Object o) {
+        @Override public final boolean contains(final Object o) {
             if (o == null) return false;
-            @SuppressWarnings("unchecked")
-            final Node<K, E> node = repo_.get(((E) o).getId());
+            @SuppressWarnings("unchecked") final Node<K, E> node = repo_.get(((E) o).getId());
             return node != null && node.isReal();
         }
 
         // (non-Javadoc)
         // @see java.util.Deque#descendingIterator()
-        @Override
-        public final Iterator<E> descendingIterator() {
+        @Override public final Iterator<E> descendingIterator() {
             return new DescendingItr();
         }
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingQueue#drainTo(java.util.Collection)
-        @Override
-        public final int drainTo(final Collection<? super E> collection) {
+        @Override public final int drainTo(final Collection<? super E> collection) {
             return drainTo(collection, Integer.MAX_VALUE);
         }
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingQueue#drainTo(java.util.Collection, int)
-        @Override
-        public final int drainTo(final Collection<? super E> collection, final int max) {
+        @Override public final int drainTo(final Collection<? super E> collection, final int max) {
             if (collection == null) throw new NullPointerException();
             if (collection == this) throw new IllegalArgumentException();
             final Lock lock = lock_;
@@ -320,8 +335,7 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see com.tmax.probus.dq.collection.IDqSolidOperator#findSolidly(java.lang.Object)
-        @Override
-        public final E findSolidly(final K key) {
+        @Override public final E findSolidly(final K key) {
             final Node<K, E> node = repo_.get(key);
             if (node == null) return null;
             return node.element;
@@ -329,15 +343,13 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see com.tmax.probus.dq.collection.IDqSolidOperator#fullSize()
-        @Override
-        public final int fullSize() {
+        @Override public final int fullSize() {
             return fullCount_.intValue();
         }
 
         // (non-Javadoc)
         // @see com.tmax.probus.dq.collection.IDqMap#get(java.lang.Object)
-        @Override
-        public final E get(final K key) {
+        @Override public final E get(final K key) {
             final Node<K, E> node = repo_.get(key);
             if (node == null || !node.isReal()) return null;
             return node.element;
@@ -345,8 +357,7 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.Deque#getFirst()
-        @Override
-        public final E getFirst() {
+        @Override public final E getFirst() {
             final E e = peekFirst();
             if (e == null) throw new NoSuchElementException();
             return e;
@@ -362,8 +373,7 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.Deque#getLast()
-        @Override
-        public final E getLast() {
+        @Override public final E getLast() {
             final E e = peekLast();
             if (e == null) throw new NoSuchElementException();
             return e;
@@ -371,30 +381,26 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.AbstractCollection#iterator()
-        @Override
-        public final Iterator<E> iterator() {
+        @Override public final Iterator<E> iterator() {
             return new Itr();
         }
 
         // (non-Javadoc)
         // @see java.util.Queue#offer(java.lang.Object)
-        @Override
-        public final boolean offer(final E e) {
+        @Override public final boolean offer(final E e) {
             return offerLast(e);
         }
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#offer(java.lang.Object, long, java.util.concurrent.TimeUnit)
-        @Override
-        public final boolean offer(final E e, final long timeout, final TimeUnit unit)
+        @Override public final boolean offer(final E e, final long timeout, final TimeUnit unit)
                 throws InterruptedException {
             return offerLast(e, timeout, unit);
         }
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#offerFirst(java.lang.Object)
-        @Override
-        public final boolean offerFirst(final E e) {
+        @Override public final boolean offerFirst(final E e) {
             if (e == null) throw new NullPointerException();
             final Node<K, E> node = new Node<K, E>(e);
             final Lock lock = lock_;
@@ -408,8 +414,7 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#offerFirst(java.lang.Object, long, java.util.concurrent.TimeUnit)
-        @Override
-        public final boolean offerFirst(final E e, final long timeout, final TimeUnit unit)
+        @Override public final boolean offerFirst(final E e, final long timeout, final TimeUnit unit)
                 throws InterruptedException {
             if (e == null) throw new NullPointerException();
             final Node<K, E> node = new Node<K, E>(e);
@@ -429,8 +434,7 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#offerLast(java.lang.Object)
-        @Override
-        public final boolean offerLast(final E e) {
+        @Override public final boolean offerLast(final E e) {
             if (e == null) throw new NullPointerException();
             final Node<K, E> node = new Node<K, E>(e);
             final Lock lock = lock_;
@@ -444,8 +448,7 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#offerLast(java.lang.Object, long, java.util.concurrent.TimeUnit)
-        @Override
-        public final boolean offerLast(final E e, final long timeout, final TimeUnit unit)
+        @Override public final boolean offerLast(final E e, final long timeout, final TimeUnit unit)
                 throws InterruptedException {
             if (e == null) throw new NullPointerException();
             final Node<K, E> node = new Node<K, E>(e);
@@ -465,15 +468,13 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.Queue#peek()
-        @Override
-        public final E peek() {
+        @Override public final E peek() {
             return peekFirst();
         }
 
         // (non-Javadoc)
         // @see java.util.Deque#peekFirst()
-        @Override
-        public final E peekFirst() {
+        @Override public final E peekFirst() {
             final Lock lock = lock_;
             lock.lock();
             try {
@@ -485,8 +486,7 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.Deque#peekLast()
-        @Override
-        public final E peekLast() {
+        @Override public final E peekLast() {
             final Lock lock = lock_;
             lock.lock();
             try {
@@ -498,23 +498,20 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.Queue#poll()
-        @Override
-        public final E poll() {
+        @Override public final E poll() {
             return pollFirst();
         }
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#poll(long, java.util.concurrent.TimeUnit)
-        @Override
-        public final E poll(final long timeout, final TimeUnit unit)
+        @Override public final E poll(final long timeout, final TimeUnit unit)
                 throws InterruptedException {
             return pollFirst(timeout, unit);
         }
 
         // (non-Javadoc)
         // @see java.util.Deque#pollFirst()
-        @Override
-        public final E pollFirst() {
+        @Override public final E pollFirst() {
             final Lock lock = lock_;
             lock.lock();
             try {
@@ -526,8 +523,7 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#pollFirst(long, java.util.concurrent.TimeUnit)
-        @Override
-        public final E pollFirst(final long timeout, final TimeUnit unit)
+        @Override public final E pollFirst(final long timeout, final TimeUnit unit)
                 throws InterruptedException {
             long nanos = unit.toNanos(timeout);
             final Lock lock = lock_;
@@ -546,8 +542,7 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.Deque#pollLast()
-        @Override
-        public final E pollLast() {
+        @Override public final E pollLast() {
             final Lock lock = lock_;
             lock.lock();
             try {
@@ -559,8 +554,7 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#pollLast(long, java.util.concurrent.TimeUnit)
-        @Override
-        public final E pollLast(final long timeout, final TimeUnit unit)
+        @Override public final E pollLast(final long timeout, final TimeUnit unit)
                 throws InterruptedException {
             long nanos = unit.toNanos(timeout);
             final Lock lock = lock_;
@@ -579,36 +573,31 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see com.tmax.probus.dq.collection.IDqStack#pop()
-        @Override
-        public final E pop() {
+        @Override public final E pop() {
             return removeFirst();
         }
 
         // (non-Javadoc)
         // @see com.tmax.probus.dq.collection.IDqStack#push(java.lang.Object)
-        @Override
-        public final void push(final E e) {
+        @Override public final void push(final E e) {
             addFirst(e);
         }
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#put(java.lang.Object)
-        @Override
-        public final void put(final E e) throws InterruptedException {
+        @Override public final void put(final E e) throws InterruptedException {
             putLast(e);
         }
 
         // (non-Javadoc)
         // @see com.tmax.probus.dq.collection.IDqMap#put(java.lang.Object, java.lang.Object)
-        @Override
-        public final void put(final K key, final E value) {
+        @Override public final void put(final K key, final E value) {
             offerLast(value);
         }
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#putFirst(java.lang.Object)
-        @Override
-        public final void putFirst(final E e) throws InterruptedException {
+        @Override public final void putFirst(final E e) throws InterruptedException {
             if (e == null) throw new NullPointerException();
             final Node<K, E> node = new Node<K, E>(e);
             final Lock lock = lock_;
@@ -623,8 +612,7 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#putLast(java.lang.Object)
-        @Override
-        public final void putLast(final E e) throws InterruptedException {
+        @Override public final void putLast(final E e) throws InterruptedException {
             if (e == null) throw new NullPointerException();
             final Node<K, E> node = new Node<K, E>(e);
             final Lock lock = lock_;
@@ -639,8 +627,7 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see com.tmax.probus.dq.collection.IDqSolidOperator#putSolidly(java.lang.Object, java.lang.Object)
-        @Override
-        public E putSolidly(final K key, final E value) {
+        @Override public E putSolidly(final K key, final E value) {
             if (value == null) throw new NullPointerException();
             final Lock lock = lock_;
             lock.lock();
@@ -661,22 +648,19 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingQueue#remainingCapacity()
-        @Override
-        public final int remainingCapacity() {
+        @Override public final int remainingCapacity() {
             return maxSize_ - count_.intValue();
         }
 
         // (non-Javadoc)
         // @see java.util.AbstractCollection#remove(java.lang.Object)
-        @Override
-        public final boolean remove(final Object o) {
+        @Override public final boolean remove(final Object o) {
             return removeFirstOccurrence(o);
         }
 
         // (non-Javadoc)
         // @see java.util.Deque#removeFirst()
-        @Override
-        public final E removeFirst() {
+        @Override public final E removeFirst() {
             final E e = pollFirst();
             if (e == null) throw new NoSuchElementException();
             return e;
@@ -684,14 +668,12 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#removeFirstOccurrence(java.lang.Object)
-        @Override
-        public final boolean removeFirstOccurrence(final Object o) {
+        @Override public final boolean removeFirstOccurrence(final Object o) {
             if (o == null) return false;
             final Lock lock = lock_;
             lock.lock();
             try {
-                @SuppressWarnings("unchecked")
-                final Node<K, E> node = repo_.get(((E) o).getId());
+                @SuppressWarnings("unchecked") final Node<K, E> node = repo_.get(((E) o).getId());
                 if (node == null || !node.isReal()) return false;
                 unlinkSolidly(node);
                 return linkFirst(node) && unlinkFirst() != null;
@@ -702,8 +684,7 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.Deque#removeLast()
-        @Override
-        public final E removeLast() {
+        @Override public final E removeLast() {
             final E e = pollLast();
             if (e == null) throw new NoSuchElementException();
             return e;
@@ -711,14 +692,12 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#removeLastOccurrence(java.lang.Object)
-        @Override
-        public final boolean removeLastOccurrence(final Object o) {
+        @Override public final boolean removeLastOccurrence(final Object o) {
             if (o == null) return false;
             final Lock lock = lock_;
             lock.lock();
             try {
-                @SuppressWarnings("unchecked")
-                final Node<K, E> node = repo_.get(((E) o).getId());
+                @SuppressWarnings("unchecked") final Node<K, E> node = repo_.get(((E) o).getId());
                 if (node == null || !node.isReal()) return false;
                 unlinkSolidly(node);
                 return linkLast(node) && unlinkLast() != null;
@@ -729,8 +708,7 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see com.tmax.probus.dq.collection.IDqSolidOperator#removeSolidly(java.lang.Object)
-        @Override
-        public final E removeSolidly(final K key) {
+        @Override public final E removeSolidly(final K key) {
             final Lock lock = lock_;
             lock.lock();
             try {
@@ -745,34 +723,32 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see com.tmax.probus.dq.collection.IDqSolidOperator#removeTimedOutSolidly(long, java.util.concurrent.TimeUnit)
-        @Override
-        public List<E> removeTimedOutSolidly(final long timeout, final TimeUnit unit) {
-            final List<E> old = new ArrayList<E>();
+        @Override public List<E> clearTimedOutSolidly(final long timeout, final TimeUnit unit) {
+            if (logger.isLoggable(FINER)) logger.entering("DqCollection", "clearTimedOutSolidly(long=" + timeout + ", TimeUnit=" + unit + ")", "start");
+            if (timeout < 0) throw new IllegalArgumentException();
+            final List<E> olds = new ArrayList<E>();
             final long limit = unit.toNanos(timeout);
             for (final Node<K, E> node : repo_.values())
-                if (node.getElapsedTime() > limit)
-                    old.add(removeSolidly(node.getId()));
-            return old;
+                if (node.getElapsedTime() > limit) olds.add(removeSolidly(node.getId()));
+            if (logger.isLoggable(FINER)) logger.exiting("DqCollection", "clearTimedOutSolidly(long, TimeUnit)", "end - return value=" + olds);
+            return olds;
         }
 
         // (non-Javadoc)
         // @see java.util.AbstractCollection#size()
-        @Override
-        public final int size() {
+        @Override public final int size() {
             return count_.intValue();
         }
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#take()
-        @Override
-        public final E take() throws InterruptedException {
+        @Override public final E take() throws InterruptedException {
             return takeFirst();
         }
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#takeFirst()
-        @Override
-        public final E takeFirst() throws InterruptedException {
+        @Override public final E takeFirst() throws InterruptedException {
             final Lock lock = lock_;
             lock.lock();
             try {
@@ -787,8 +763,7 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#takeLast()
-        @Override
-        public final E takeLast() throws InterruptedException {
+        @Override public final E takeLast() throws InterruptedException {
             final Lock lock = lock_;
             lock.lock();
             try {
@@ -803,8 +778,7 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.AbstractCollection#toArray()
-        @Override
-        public final Object[] toArray() {
+        @Override public final Object[] toArray() {
             final Lock lock = lock_;
             lock.lock();
             try {
@@ -820,9 +794,7 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.AbstractCollection#toArray(T[])
-        @SuppressWarnings("unchecked")
-        @Override
-        public final <T extends Object> T[] toArray(T[] a) {
+        @SuppressWarnings("unchecked") @Override public final <T extends Object> T[] toArray(T[] a) {
             final Lock lock = lock_;
             lock.lock();
             try {
@@ -839,8 +811,7 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.AbstractCollection#toString()
-        @Override
-        public final String toString() {
+        @Override public final String toString() {
             final Lock lock = lock_;
             lock.lock();
             try {
@@ -932,8 +903,7 @@ public class DqCollections {
             is.defaultReadObject();
             count_.set(0);
             for (;;) {
-                @SuppressWarnings("unchecked")
-                final E e = (E) is.readObject();
+                @SuppressWarnings("unchecked") final E e = (E) is.readObject();
                 if (e == null) break;
                 add(e);
             }
@@ -1021,9 +991,6 @@ public class DqCollections {
             }
         }
 
-        /**
-         * The Class AbstractItr.
-         */
         private abstract class AbstractItr implements Iterator<E> {
             /** The next. */
             Node<K, E> next;
@@ -1048,15 +1015,13 @@ public class DqCollections {
 
             // (non-Javadoc)
             // @see java.util.Iterator#hasNext()
-            @Override
-            public boolean hasNext() {
+            @Override public boolean hasNext() {
                 return isValid(next);
             }
 
             // (non-Javadoc)
             // @see java.util.Iterator#next()
-            @Override
-            public E next() {
+            @Override public E next() {
                 if (!isValid(next)) throw new NoSuchElementException();
                 lastRet = next;
                 final E e = nextItem;
@@ -1066,8 +1031,7 @@ public class DqCollections {
 
             // (non-Javadoc)
             // @see java.util.Iterator#remove()
-            @Override
-            public void remove() {
+            @Override public void remove() {
                 final Node<K, E> n = lastRet;
                 if (isValid(n)) throw new IllegalStateException();
                 lastRet = null;
@@ -1126,40 +1090,30 @@ public class DqCollections {
             }
         }
 
-        /**
-         * The Class DescendingItr.
-         */
         private final class DescendingItr extends AbstractItr {
             // (non-Javadoc)
             // @see com.tmax.probus.dq.collection.DqQueueFactory.DqQueue.AbstractItr#firstNode()
-            @Override
-            Node<K, E> firstNode() {
+            @Override Node<K, E> firstNode() {
                 return tail_.prev;
             }
 
             // (non-Javadoc)
             // @see com.tmax.probus.dq.collection.DqQueueFactory.DqQueue.AbstractItr#nextNode(com.tmax.probus.dq.collection.DqQueueFactory.DqQueue.Node)
-            @Override
-            Node<K, E> nextNode(final Node<K, E> n) {
+            @Override Node<K, E> nextNode(final Node<K, E> n) {
                 return n.prev;
             }
         }
 
-        /**
-         * The Class Itr.
-         */
         private final class Itr extends AbstractItr {
             // (non-Javadoc)
             // @see com.tmax.probus.dq.collection.DqQueueFactory.DqQueue.AbstractItr#firstNode()
-            @Override
-            Node<K, E> firstNode() {
+            @Override Node<K, E> firstNode() {
                 return head_.next;
             }
 
             // (non-Javadoc)
             // @see com.tmax.probus.dq.collection.DqQueueFactory.DqQueue.AbstractItr#nextNode(com.tmax.probus.dq.collection.DqQueueFactory.DqQueue.Node)
-            @Override
-            Node<K, E> nextNode(final Node<K, E> n) {
+            @Override Node<K, E> nextNode(final Node<K, E> n) {
                 return n.next;
             }
         }
@@ -1193,8 +1147,7 @@ public class DqCollections {
 
             // (non-Javadoc)
             // @see java.lang.Object#equals(java.lang.Object)
-            @Override
-            public final boolean equals(final Object obj) {
+            @Override public final boolean equals(final Object obj) {
                 if (obj == null || element == null) return false;
                 if (obj instanceof Node) return element.equals(((Node<?, ?>) obj).element);
                 return super.equals(obj);
@@ -1202,14 +1155,14 @@ public class DqCollections {
 
             // (non-Javadoc)
             // @see java.lang.Object#hashCode()
-            @Override
-            public final int hashCode() {
+            @Override public final int hashCode() {
                 if (element == null) return 0;
                 return element.hashCode();
             }
 
             /**
-             * Gets the elapsed time.
+             * Gets the elapsed time.<br/>
+             * timestamp가 음수인 경우는 head-tail구간에서 제외되지 않았다고 본다.
              * @return the elapsed time
              */
             final long getElapsedTime() {

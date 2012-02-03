@@ -17,7 +17,7 @@ import java.util.Collection;
 
 
 /**
- * The Interface IDqStack.
+ * DqCollections에서 반환하는 Stack 구조 인터페이스
  * @param <E> the element type
  */
 public interface IDqStack<E> extends Collection<E> {
