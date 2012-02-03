@@ -12,16 +12,12 @@
  */
 package com.tmax.probus.dq.collection;
 
-
-import java.util.concurrent.BlockingDeque;
-import java.util.concurrent.BlockingQueue;
-
-
 /**
- *
+ * The Interface IDqQueue.
+ * @param <K> the key type
+ * @param <V> the value type
  */
-public interface IDqQueue<K, V>
-        extends BlockingDeque<V>, BlockingQueue<V>, IDqMap<K, V>, IDqStack<V> {
+public interface IDqSolidOperator<K, V> {
     /**
      * Full size.
      * @return the int
@@ -33,12 +29,20 @@ public interface IDqQueue<K, V>
      * @param key the key
      * @return the e
      */
-    V findReal(K key);
+    V findSolidly(K key);
 
     /**
      * Removes the item.
      * @param key the key
      * @return the e
      */
-    V removeReal(K key);
+    V removeSolidly(K key);
+
+    /**
+     * Put solidly.
+     * @param key the key
+     * @param value the value
+     * @return the v
+     */
+    V putSolidly(K key, V value);
 }

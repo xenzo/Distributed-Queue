@@ -31,5 +31,5 @@ public interface IDqMap<K, V> {
      * @param value the value
      * @return the v
      */
-    V put(K key, V value);
+    void put(K key, V value);
 }
