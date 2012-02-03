@@ -89,8 +89,23 @@ public class DqCollections {
      * @param maxCapacity the max capacity
      * @return the blocking deque
      */
-    public static <E extends IDqElement<String>> BlockingDeque<E> newBlockingDeque(final String id, final int maxSize, final int maxCapacity) {
+    public static <E extends IDqElement<String>> BlockingDeque<E> newBlockingDeque(final String id, final int maxSize
+            , final int maxCapacity) {
         return new DqCollection<String, E>(id, maxSize, maxCapacity);
+    }
+
+    /**
+     * new Blocking Deque.
+     * @param <E> the element type
+     * @param id the id
+     * @param listener the listener
+     * @param maxSize the max size
+     * @param maxCapacity the max capacity
+     * @return the blocking deque
+     */
+    public static <E extends IDqElement<String>> BlockingDeque<E> newBlockingDeque(final String id, final int maxSize
+            , final int maxCapacity, final IDqItemEventListener<E> listener) {
+        return new DqCollection<String, E>(id, listener, maxSize, maxCapacity);
     }
 
     /**
@@ -111,8 +126,23 @@ public class DqCollections {
      * @param maxCapacity the max capacity
      * @return the blocking queue
      */
-    public static <E extends IDqElement<String>> BlockingQueue<E> newBlockingQueue(final String id, final int maxSize, final int maxCapacity) {
+    public static <E extends IDqElement<String>> BlockingQueue<E> newBlockingQueue(final String id, final int maxSize
+            , final int maxCapacity) {
         return new DqCollection<String, E>(id, maxSize, maxCapacity);
+    }
+
+    /**
+     * new Blocking Queue.
+     * @param <E> the element type
+     * @param id the id
+     * @param listener the listener
+     * @param maxSize the max size
+     * @param maxCapacity the max capacity
+     * @return the blocking queue
+     */
+    public static <E extends IDqElement<String>> BlockingQueue<E> newBlockingQueue(final String id, final int maxSize
+            , final int maxCapacity, final IDqItemEventListener<E> listener) {
+        return new DqCollection<String, E>(id, listener, maxSize, maxCapacity);
     }
 
     /**
@@ -140,6 +170,21 @@ public class DqCollections {
     }
 
     /**
+     * new Map.
+     * @param <K> the key type
+     * @param <E> the element type
+     * @param id the id
+     * @param listener the listener
+     * @param maxSize the max size
+     * @param maxCapacity the max capacity
+     * @return the i dq map
+     */
+    public static <K, E extends IDqElement<K>> IDqMap<K, E> newDqMap(final String id, final int maxSize, final int maxCapacity
+            , final IDqItemEventListener<E> listener) {
+        return new DqCollection<K, E>(id, listener, maxSize, maxCapacity);
+    }
+
+    /**
      * new Stack.
      * @param <E> the element type
      * @param id the id
@@ -159,6 +204,20 @@ public class DqCollections {
      */
     public static <E extends IDqElement<String>> IDqStack<E> newDqStack(final String id, final int maxSize, final int maxCapacity) {
         return new DqCollection<String, E>(id, maxSize, maxCapacity);
+    }
+
+    /**
+     * new Stack.
+     * @param <E> the element type
+     * @param id the id
+     * @param listener the listener
+     * @param maxSize the max size
+     * @param maxCapacity the max capacity
+     * @return the i dq stack
+     */
+    public static <E extends IDqElement<String>> IDqStack<E> newDqStack(final String id, final int maxSize, final int maxCapacity
+            , final IDqItemEventListener<E> listener) {
+        return new DqCollection<String, E>(id, listener, maxSize, maxCapacity);
     }
 
     /**
@@ -192,9 +251,13 @@ public class DqCollections {
             implements IDqSolidOperator<K, E>, IDqMap<K, E>, IDqStack<E>, BlockingDeque<E>,
             BlockingQueue<E>, Serializable {
         private static final long serialVersionUID = 771471529351045470L;
+        /** The Constant NANO_BASE. */
+        private static final long NANO_BASE = System.nanoTime();
         private final transient Logger logger = Logger.getLogger("com.tmax.probus.dq.collection");
         /** The id. */
         final String id_;
+        /** 아이템 추가/제거시 호출되는 리스너. */
+        private IDqItemEventListener<E> listener_;
         /** The repo */
         private final transient ConcurrentMap<K, Node<K, E>> repo_;
         /** 큐의 head이다. */
@@ -217,19 +280,22 @@ public class DqCollections {
             NULL_NODE.prev = NULL_NODE.next = NULL_NODE;
             NULL_NODE.setReal(false);
         }
-        /** The Constant NANO_BASE. */
-        private static final long NANO_BASE = System.nanoTime();
 
         private DqCollection(final String id) {
-            this(id, Integer.MAX_VALUE, 128);
+            this(id, null, Integer.MAX_VALUE, 128);
         }
 
-        private DqCollection(final String id, final int maxSize, final int mapCapacity) {
+        private DqCollection(final String id, final IDqItemEventListener<E> listener, final int maxSize, final int mapCapacity) {
             if (id == null || maxSize <= 0 || mapCapacity <= 0) throw new IllegalArgumentException();
             id_ = id;
+            listener_ = (listener == null ? new JustDoNotEventListener() : listener);
             repo_ = new ConcurrentHashMap<K, Node<K, E>>(mapCapacity);
             maxSize_ = maxSize;
             head_ = tail_ = NULL_NODE;
+        }
+
+        private DqCollection(final String id, final int maxSize, final int mapCapacity) {
+            this(id, null, maxSize, mapCapacity);
         }
 
         // (non-Javadoc)
@@ -853,7 +919,7 @@ public class DqCollections {
         }
 
         /**
-         * Link first.
+         * BASE UNIT JOB
          * @param node the node
          * @return true, if successful
          */
@@ -871,12 +937,13 @@ public class DqCollections {
             node.setReal(true);
             count_.incrementAndGet();
             fullCount_.incrementAndGet();
+            listener_.processItemAdded(node.element);
             notEmpty_.signal();
             return true;
         }
 
         /**
-         * Link last.
+         * BASE UNIT JOB
          * @param node the node
          * @return true, if successful
          */
@@ -894,6 +961,7 @@ public class DqCollections {
             node.setReal(true);
             count_.incrementAndGet();
             fullCount_.incrementAndGet();
+            listener_.processItemAdded(node.element);
             notEmpty_.signal();
             return true;
         }
@@ -933,7 +1001,7 @@ public class DqCollections {
         }
 
         /**
-         * Unlink first.
+         * BASE UNIT JOB
          * @return the e
          */
         private final E unlinkFirst() {
@@ -942,12 +1010,13 @@ public class DqCollections {
             head_.next = h.next;
             h.notReal();
             count_.decrementAndGet();
+            listener_.processItemRemoved(h.element);
             notFull_.signal();
             return h.element;
         }
 
         /**
-         * Unlink last.
+         * BASE UNIT JOB
          * @return the e
          */
         private final E unlinkLast() {
@@ -956,17 +1025,18 @@ public class DqCollections {
             tail_.prev = p.prev;
             p.notReal();
             count_.decrementAndGet();
+            listener_.processItemRemoved(p.element);
             notFull_.signal();
             return p.element;
         }
 
         /**
-         * Unlink solidly.
+         * BASE UNIT JOB
          * @param node the node
          */
         private final E unlinkSolidly(final Node<K, E> node) {
             if (node == NULL_NODE) throw new IllegalArgumentException("NULL NODE");
-            final Node<K, E> existNode = repo_.get(node.getId());
+            final Node<K, E> existNode = repo_.remove(node.getId());
             if (existNode == null) throw new NoSuchElementException("EXISTS");
             final Node<K, E> p = node.prev;
             final Node<K, E> n = node.next;
@@ -975,7 +1045,7 @@ public class DqCollections {
             fullCount_.decrementAndGet();
             if (node.isReal()) count_.decrementAndGet();
             gc(node);
-            node.setReal(false);
+            node.notReal();
             notFull_.signal();
             return node.element;
         }
@@ -1080,6 +1150,18 @@ public class DqCollections {
             // @see com.tmax.probus.dq.collection.DqQueueFactory.DqQueue.AbstractItr#nextNode(com.tmax.probus.dq.collection.DqQueueFactory.DqQueue.Node)
             @Override Node<K, E> nextNode(final Node<K, E> n) {
                 return n.prev;
+            }
+        }
+
+        private class JustDoNotEventListener implements IDqItemEventListener<E> {
+            // (non-Javadoc)
+            // @see com.tmax.probus.dq.collection.IDqCollectionListener#processItemAdded(java.lang.Object)
+            @Override public void processItemAdded(E e) {
+            }
+
+            // (non-Javadoc)
+            // @see com.tmax.probus.dq.collection.IDqCollectionListener#processItemRemoved(java.lang.Object)
+            @Override public void processItemRemoved(E e) {
             }
         }
 
