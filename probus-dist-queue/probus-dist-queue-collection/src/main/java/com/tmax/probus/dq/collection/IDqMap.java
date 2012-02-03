@@ -12,12 +12,17 @@
  */
 package com.tmax.probus.dq.collection;
 
+
+import java.util.Collection;
+
+
 /**
- * The Interface IDqMap.
+ * DqCollections에서 반환하는 Map 인터페이스이다. java.util.Map을 사용하려고 하였으나 메소드의 중복으로 사용빈도가
+ * 떨어질것으로 보이는 Map은 자체 정의하였다.
  * @param <K> the key type
  * @param <V> the value type
  */
-public interface IDqMap<K, V> {
+public interface IDqMap<K, V> extends Collection<V> {
     /**
      * Gets the.
      * @param key the key

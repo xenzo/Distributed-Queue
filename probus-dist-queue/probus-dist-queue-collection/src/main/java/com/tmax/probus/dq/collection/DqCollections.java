@@ -38,6 +38,10 @@ import java.util.logging.Logger;
  * A factory for creating DqQueue objects.
  */
 public class DqCollections {
+    public static <K, E extends IDqElement<K>> IDqSolidOperator<K, E> convert2SolidOperator(Collection<E> collection) {
+        return (IDqSolidOperator<K, E>) collection;
+    }
+
     /**
      * New blocking deque.
      * @param <E> the element type
@@ -216,13 +220,13 @@ public class DqCollections {
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#addFirst(java.lang.Object)
         @Override public final void addFirst(final E e) {
-            if (!offerFirst(e)) throw new IllegalStateException("FULL");
+            if (!offerFirst(e)) throw new IllegalStateException("FULL-or-EXISTS");
         }
 
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#addLast(java.lang.Object)
         @Override public final void addLast(final E e) {
-            if (!offerLast(e)) throw new IllegalStateException("FULL");
+            if (!offerLast(e)) throw new IllegalStateException("FULL-or-EXISTS");
         }
 
         // (non-Javadoc)
@@ -646,10 +650,16 @@ public class DqCollections {
         // (non-Javadoc)
         // @see com.tmax.probus.dq.collection.IDqSolidOperator#removeSolidly(java.lang.Object)
         @Override public final E removeSolidly(final K key) {
-            final Node<K, E> node = repo_.get(key);
-            if (node == null) throw new NoSuchElementException();
-            unlinkSolidly(node);
-            return node.element;
+            final Lock lock = lock_;
+            lock.lock();
+            try {
+                final Node<K, E> node = repo_.get(key);
+                if (node == null) throw new NoSuchElementException();
+                unlinkSolidly(node);
+                return node.element;
+            } finally {
+                lock.unlock();
+            }
         }
 
         // (non-Javadoc)
@@ -781,7 +791,7 @@ public class DqCollections {
             if (isFull()) return false;
             if (node == NULL_NODE) throw new IllegalArgumentException("NULL NODE");
             final Node<K, E> existNode = repo_.putIfAbsent(node.getId(), node);
-            if (existNode != null) throw new IllegalArgumentException("EXISTS");
+            if (existNode != null) return false;
             final Node<K, E> first = head_.next;
             node.next = first;
             node.prev = first.prev;
@@ -804,7 +814,7 @@ public class DqCollections {
             if (isFull()) return false;
             if (node == NULL_NODE) throw new IllegalArgumentException("NULL NODE");
             final Node<K, E> existNode = repo_.putIfAbsent(node.getId(), node);
-            if (existNode != null) throw new IllegalArgumentException("EXISTS");
+            if (existNode != null) return false;
             final Node<K, E> last = tail_.prev;
             node.prev = last;
             node.next = last.next;
@@ -857,9 +867,11 @@ public class DqCollections {
          * @return the e
          */
         private final E unlinkFirst() {
+            if (count.intValue() == 0) return null;
             final Node<K, E> h = head_.next;
             head_.next = h.next;
             h.isReal = false;
+            count.decrementAndGet();
             notFull.signal();
             return h.element;
         }
@@ -869,9 +881,11 @@ public class DqCollections {
          * @return the e
          */
         private final E unlinkLast() {
+            if (count.intValue() == 0) return null;
             final Node<K, E> p = tail_.prev;
             tail_.prev = p.prev;
             p.isReal = false;
+            count.decrementAndGet();
             notFull.signal();
             return p.element;
         }

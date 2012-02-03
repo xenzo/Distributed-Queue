@@ -13,7 +13,7 @@
 package com.tmax.probus.dq.collection;
 
 /**
- * The Interface IDqQueue.
+ * DqCollections에서 물리적으로 실제 데이터를 삭제하거나 사용할 수 있도록 하는 인터페이스이다.
  * @param <K> the key type
  * @param <V> the value type
  */

@@ -12,11 +12,15 @@
  */
 package com.tmax.probus.dq.collection;
 
+
+import java.util.Collection;
+
+
 /**
  * The Interface IDqStack.
  * @param <E> the element type
  */
-public interface IDqStack<E> {
+public interface IDqStack<E> extends Collection<E> {
     /**
      * Pop.
      * @return the e

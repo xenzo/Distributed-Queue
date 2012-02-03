@@ -13,7 +13,7 @@
 package com.tmax.probus.dq.collection;
 
 /**
- * The Interface IDqElement.
+ * DqCollection에서 사용할 인자값을 나타내는 인터페이스이다.
  */
 public interface IDqElement<K> {
     /**
