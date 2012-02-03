@@ -13,6 +13,10 @@
 package com.tmax.probus.dq.collection;
 
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.util.AbstractQueue;
 import java.util.Collection;
@@ -33,14 +37,14 @@ import java.util.logging.Logger;
 /**
  * A factory for creating DqQueue objects.
  */
-public class DqQueueFactory {
+public class DqCollections {
     /**
      * New blocking deque.
      * @param <E> the element type
      * @return the blocking deque
      */
-    public static <E extends IDqElement<String>> BlockingDeque<E> newBlockingDeque() {
-        return new DqQueue<String, E>();
+    public static <E extends IDqElement<String>> BlockingDeque<E> newBlockingDeque(String id) {
+        return new DqCollection<String, E>(id);
     }
 
     /**
@@ -48,8 +52,8 @@ public class DqQueueFactory {
      * @param <E> the element type
      * @return the blocking queue
      */
-    public static <E extends IDqElement<String>> BlockingQueue<E> newBlockingQueue() {
-        return new DqQueue<String, E>();
+    public static <E extends IDqElement<String>> BlockingQueue<E> newBlockingQueue(String id) {
+        return new DqCollection<String, E>(id);
     }
 
     /**
@@ -58,8 +62,8 @@ public class DqQueueFactory {
      * @param <E> the element type
      * @return the i dq map
      */
-    public static <K, E extends IDqElement<K>> IDqMap<K, E> newDqMap() {
-        return new DqQueue<K, E>();
+    public static <K, E extends IDqElement<K>> IDqMap<K, E> newDqMap(String id) {
+        return new DqCollection<K, E>(id);
     }
 
     /**
@@ -67,8 +71,45 @@ public class DqQueueFactory {
      * @param <E> the element type
      * @return the i dq stack
      */
-    public static <E extends IDqElement<String>> IDqStack<E> newDqStack() {
-        return new DqQueue<String, E>();
+    public static <E extends IDqElement<String>> IDqStack<E> newDqStack(String id) {
+        return new DqCollection<String, E>(id);
+    }
+
+    /**
+     * New blocking deque.
+     * @param <E> the element type
+     * @return the blocking deque
+     */
+    public static <E extends IDqElement<String>> BlockingDeque<E> newBlockingDeque(String id, int maxSize, int maxCapacity) {
+        return new DqCollection<String, E>(id, maxSize, maxCapacity);
+    }
+
+    /**
+     * New blocking queue.
+     * @param <E> the element type
+     * @return the blocking queue
+     */
+    public static <E extends IDqElement<String>> BlockingQueue<E> newBlockingQueue(String id, int maxSize, int maxCapacity) {
+        return new DqCollection<String, E>(id, maxSize, maxCapacity);
+    }
+
+    /**
+     * New dq map.
+     * @param <K> the key type
+     * @param <E> the element type
+     * @return the i dq map
+     */
+    public static <K, E extends IDqElement<K>> IDqMap<K, E> newDqMap(String id, int maxSize, int maxCapacity) {
+        return new DqCollection<K, E>(id, maxSize, maxCapacity);
+    }
+
+    /**
+     * New dq stack.
+     * @param <E> the element type
+     * @return the i dq stack
+     */
+    public static <E extends IDqElement<String>> IDqStack<E> newDqStack(String id, int maxSize, int maxCapacity) {
+        return new DqCollection<String, E>(id, maxSize, maxCapacity);
     }
 
     /**
@@ -98,9 +139,13 @@ public class DqQueueFactory {
      * @see java.util.concurrent.LinkedBlockingQueue,
      *      java.util.concurrent.LinkedBlockingDeque
      */
-    private static final class DqQueue<K, E extends IDqElement<K>> extends AbstractQueue<E>
+    private static final class DqCollection<K, E extends IDqElement<K>> extends AbstractQueue<E>
             implements IDqSolidOperator<K, E>, IDqMap<K, E>, IDqStack<E>, BlockingDeque<E>,
-            BlockingQueue<E> {
+            BlockingQueue<E>, Serializable {
+        /** The id_. */
+        final String id_;
+        /** The Constant serialVersionUID. */
+        private static final long serialVersionUID = 771471529351045470L;
         /** Logger for this class. */
         private final transient Logger logger = Logger.getLogger("com.tmax.probus.dq.collection");
         /** The repo_. */
@@ -110,7 +155,7 @@ public class DqQueueFactory {
         /** The tail_. */
         private final Node<K, E> tail_;
         /** The capacity. */
-        private int capacity;
+        private int maxSize_;
         /** The count. */
         private final AtomicInteger count = new AtomicInteger(0);
         /** The full count. */
@@ -130,20 +175,23 @@ public class DqQueueFactory {
 
         /**
          * Instantiates a new dq backup queue.
+         * @param id the id
          */
-        private DqQueue() {
-            this(Integer.MAX_VALUE, 128);
+        private DqCollection(final String id) {
+            this(id, Integer.MAX_VALUE, 128);
         }
 
         /**
          * Instantiates a new dq backup queue.
+         * @param id the id
          * @param maxValue the max value
          * @param mapCapacity the map capacity
          */
-        private DqQueue(final int maxValue, final int mapCapacity) {
-            if (maxValue <= 0) throw new IllegalArgumentException();
+        private DqCollection(final String id, final int maxSize, final int mapCapacity) {
+            if (id == null || maxSize <= 0 || mapCapacity <= 0) throw new IllegalArgumentException();
+            id_ = id;
             repo_ = new ConcurrentHashMap<K, Node<K, E>>(mapCapacity);
-            capacity = maxValue;
+            maxSize_ = maxSize;
             head_ = tail_ = NULL_NODE;
         }
 
@@ -515,9 +563,30 @@ public class DqQueueFactory {
         }
 
         // (non-Javadoc)
+        // @see com.tmax.probus.dq.collection.IDqSolidOperator#putSolidly(java.lang.Object, java.lang.Object)
+        @Override public E putSolidly(final K key, final E value) {
+            if (value == null) throw new NullPointerException();
+            final Lock lock = lock_;
+            lock.lock();
+            try {
+                final Node<K, E> node = new Node<K, E>(value);
+                final E exists = findSolidly(key);
+                if (exists == null) {
+                    linkLast(node);
+                    return null;
+                } else {
+                    replaceSolidly(node);
+                    return exists;
+                }
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        // (non-Javadoc)
         // @see java.util.concurrent.BlockingQueue#remainingCapacity()
         @Override public final int remainingCapacity() {
-            return capacity - count.intValue();
+            return maxSize_ - count.intValue();
         }
 
         // (non-Javadoc)
@@ -679,6 +748,14 @@ public class DqQueueFactory {
         }
 
         /**
+         * Gets the id.
+         * @return the id
+         */
+        public final String getId() {
+            return id_;
+        }
+
+        /**
          * help GC.
          * @param node the exist node
          */
@@ -692,7 +769,7 @@ public class DqQueueFactory {
          * @return true, if is full
          */
         private final boolean isFull() {
-            return count.intValue() >= capacity || fullCount.intValue() >= Integer.MAX_VALUE;
+            return count.intValue() >= maxSize_ || fullCount.intValue() >= Integer.MAX_VALUE;
         }
 
         /**
@@ -742,26 +819,37 @@ public class DqQueueFactory {
         }
 
         /**
+         * Read object. 일단 LinkedBlockingDeque에 있어서 옮겨 놓긴 했지만 고려되지 않았음
+         * @param is the is
+         * @throws IOException Signals that an I/O exception has occurred.
+         * @throws ClassNotFoundException the class not found exception
+         */
+        private void readObject(final ObjectInputStream is) throws IOException,
+                ClassNotFoundException {
+            is.defaultReadObject();
+            count.set(0);
+            for (;;) {
+                final E e = (E) is.readObject();
+                if (e == null) break;
+                add(e);
+            }
+        }
+
+        /**
          * Replace real.
          * @param node the node
          * @return the node
          */
         private final Node<K, E> replaceSolidly(final Node<K, E> node) {
             if (node == NULL_NODE) throw new IllegalArgumentException("NULL NODE");
-            final Lock lock = lock_;
-            lock.lock();
-            try {
-                final Node<K, E> existNode = repo_.get(node.getId());
-                if (existNode == null || node == existNode) return null;
-                node.prev = existNode.prev;
-                node.next = existNode.next;
-                node.prev.next = node;
-                node.next.prev = node;
-                gc(existNode);
-                return existNode;
-            } finally {
-                lock.unlock();
-            }
+            final Node<K, E> existNode = repo_.get(node.getId());
+            if (existNode == null || node == existNode) return null;
+            node.prev = existNode.prev;
+            node.next = existNode.next;
+            node.prev.next = node;
+            node.next.prev = node;
+            gc(existNode);
+            return existNode;
         }
 
         /**
@@ -794,20 +882,33 @@ public class DqQueueFactory {
          */
         private final void unlinkSolidly(final Node<K, E> node) {
             if (node == NULL_NODE) throw new IllegalArgumentException("NULL NODE");
+            final Node<K, E> existNode = repo_.get(node.getId());
+            if (existNode == null) throw new NoSuchElementException("EXISTS");
+            final Node<K, E> p = node.prev;
+            final Node<K, E> n = node.next;
+            p.next = n;
+            n.prev = p;
+            fullCount.decrementAndGet();
+            if (node.isReal) count.decrementAndGet();
+            gc(node);
+            node.isReal = false;
+            notFull.signal();
+        }
+
+        /**
+         * Write object. 일단 LinkedBlockingDeque에 있어서 옮겨 놓긴 했지만 고려되지 않았음
+         * @param os the os
+         * @throws IOException Signals that an I/O exception has occurred.
+         */
+        private void writeObject(final ObjectOutputStream os) throws IOException {
             final Lock lock = lock_;
             lock.lock();
             try {
-                final Node<K, E> existNode = repo_.get(node.getId());
-                if (existNode == null) throw new NoSuchElementException("EXISTS");
-                final Node<K, E> p = node.prev;
-                final Node<K, E> n = node.next;
-                p.next = n;
-                n.prev = p;
-                fullCount.decrementAndGet();
-                if (node.isReal) count.decrementAndGet();
-                gc(node);
-                node.isReal = false;
-                notFull.signal();
+                os.defaultWriteObject();
+                for (Node<K, E> n = head_.next; n.isReal; n = n.next) {
+                    os.writeObject(n.element);
+                }
+                os.writeObject(null);
             } finally {
                 lock.unlock();
             }
@@ -841,8 +942,7 @@ public class DqQueueFactory {
             // (non-Javadoc)
             // @see java.util.Iterator#hasNext()
             @Override public boolean hasNext() {
-                // XXX must do something
-                return false;
+                return isValid(next);
             }
 
             // (non-Javadoc)
@@ -996,12 +1096,6 @@ public class DqQueueFactory {
                 if (element != null) return element.getId();
                 return null;
             }
-        }
-
-        // (non-Javadoc)
-        // @see com.tmax.probus.dq.collection.IDqSolidOperator#putSolidly(java.lang.Object, java.lang.Object)
-        @Override public E putSolidly(K key, E value) {
-            return null;
         }
     }
 }
