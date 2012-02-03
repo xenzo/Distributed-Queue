@@ -17,7 +17,11 @@ import static java.util.logging.Level.*;
 import static org.junit.Assert.*;
 
 import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 import org.junit.Before;
@@ -108,6 +112,58 @@ public class DqCollectionsTest {
         assertEquals("B", operator.putSolidly("B", new Elem("B")).getId());
         assertEquals("D", deque.pollLast().getId());
         assertEquals("B", deque.pollFirst().getId());
+    }
+
+    @Test public void testConcurrency() {
+        final CountDownLatch l = new CountDownLatch(1);
+        final AtomicInteger a = new AtomicInteger(0);
+        ExecutorService ec = Executors.newFixedThreadPool(5);
+        ExecutorService ed = Executors.newFixedThreadPool(5);
+        for (int i = 0; i < 5000; i++) {
+            ec.submit(new Runnable() {
+                @Override public void run() {
+                    try {
+                        l.await();
+                    } catch (InterruptedException ex) {
+                        fail();
+                    }
+                    deque.offer(new Elem(Integer.toString(a.getAndIncrement())));
+                }
+            });
+        }
+        for (int i = 0; i < 2500; i++) {
+            ed.submit(new Runnable() {
+                @Override public void run() {
+                    try {
+                        l.await();
+                        System.out.println(">> " + deque.takeFirst().getId());
+                    } catch (InterruptedException ex) {
+                        fail();
+                    }
+                }
+            });
+        }
+        for (int i = 0; i < 2500; i++) {
+            ed.submit(new Runnable() {
+                @Override public void run() {
+                    try {
+                        l.await();
+                        System.out.println("\t<< " + deque.takeLast().getId());
+                    } catch (InterruptedException ex) {
+                        fail();
+                    }
+                }
+            });
+        }
+        l.countDown();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException ex) {
+            logger.log(WARNING, "" + ex.getMessage(), ex);
+        }
+        assertEquals(5000, a.intValue());
+        assertEquals(4, deque.size());
+        assertEquals(5004, operator.fullSize());
     }
 
     static class Elem implements IDqElement<String> {
