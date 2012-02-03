@@ -24,16 +24,14 @@ import java.util.concurrent.TimeUnit;
  */
 public interface IDqSolidOperator<K, V> {
     /**
-     * 아이디를 반환한다.
-     * @return the id
+     * DqCollection은 orphan 리스트가 존재할 수도 있기 때문에 그 해결책 중 하나로 논리적으로 head와 tail의
+     * 범위에서 벗어난 노드들에 대해 timeout을 적용할 수 있도록 하였다.<br/>
+     * timeout된 노드들을 리스트에서 제거하고 그 노드들의 element 리스트를 반환한다.
+     * @param timeout the timeout
+     * @param unit the unit
+     * @return the list
      */
-    String getId();
-
-    /**
-     * 전체 노드의 갯수
-     * @return the int
-     */
-    int fullSize();
+    List<V> clearTimedOutSolidly(long timeout, TimeUnit unit);
 
     /**
      * 전체 노드중에서 특정 키를 가진 노드를 찾는다.
@@ -43,11 +41,26 @@ public interface IDqSolidOperator<K, V> {
     V findSolidly(K key);
 
     /**
-     * Removes the item.
-     * @param key the key
-     * @return the e
+     * 전체 노드의 갯수
+     * @return the int
      */
-    V removeSolidly(K key);
+    int fullSize();
+
+    /**
+     * 아이디를 반환한다.
+     * @return the id
+     */
+    String getId();
+
+    /**
+     * DqCollection은 orphan 리스트가 존재할 수도 있기 때문에 그 해결책 중 하나로 논리적으로 head와 tail의
+     * 범위에서 벗어난 노드들에 대해 timeout을 적용할 수 있도록 하였다.<br/>
+     * timeout된 노드들의 element 리스트를 반환한다.
+     * @param timeout the timeout
+     * @param unit the unit
+     * @return the timed out list
+     */
+    List<V> getTimedOutSolidly(long timeout, TimeUnit unit);
 
     /**
      * Put solidly.
@@ -58,11 +71,9 @@ public interface IDqSolidOperator<K, V> {
     V putSolidly(K key, V value);
 
     /**
-     * DqCollection은 orphan 리스트가 존재할 수도 있기 때문에 그 해결책 중 하나로 논리적으로 head와 tail의
-     * 범위에서 벗어난 노드들에 대해 timeout을 적용할 수 있도록 하였다.
-     * @param timeout the timeout
-     * @param unit the unit
-     * @return the list
+     * Removes the item.
+     * @param key the key
+     * @return the e
      */
-    List<V> clearTimedOutSolidly(long timeout, TimeUnit unit);
+    V removeSolidly(K key);
 }

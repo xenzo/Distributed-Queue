@@ -49,6 +49,18 @@ import java.util.logging.Logger;
  */
 public class DqCollections {
     /**
+     * cast to specified collection.
+     * @param <T> the generic type
+     * @param <E> the element type
+     * @param original the original
+     * @param claz the claz
+     * @return the t
+     */
+    public static <T, E> T convert2Collection(final Collection<E> original, final Class<T> claz) {
+        return claz.cast(original);
+    }
+
+    /**
      * cast to IDqSolidOperator.
      * @param <K> the key type
      * @param <E> the element type
@@ -57,18 +69,6 @@ public class DqCollections {
      */
     @SuppressWarnings("unchecked") public static <K, E extends IDqElement<K>> IDqSolidOperator<K, E> convert2SolidOperator(final Collection<E> collection) {
         return convert2Collection(collection, IDqSolidOperator.class);
-    }
-
-    /**
-     * cast to specified collection.
-     * @param <T> the generic type
-     * @param <E> the element type
-     * @param original the original
-     * @param claz the claz
-     * @return the t
-     */
-    public static <T, E> T convert2Collection(Collection<E> original, Class<T> claz) {
-        return claz.cast(original);
     }
 
     /**
@@ -185,37 +185,33 @@ public class DqCollections {
      * @param <K> the key type
      * @param <E> the element type
      * @author Kim, Dong iL
-     * @see java.util.concurrent.LinkedBlockingQueue,
-     *      java.util.concurrent.LinkedBlockingDeque
+     * @see java.util.concurrent.LinkedBlockingQueue
+     * @see java.util.concurrent.LinkedBlockingDeque
      */
     private static final class DqCollection<K, E extends IDqElement<K>> extends AbstractQueue<E>
             implements IDqSolidOperator<K, E>, IDqMap<K, E>, IDqStack<E>, BlockingDeque<E>,
             BlockingQueue<E>, Serializable {
-        /** The id_. */
-        final String id_;
-        /** The Constant serialVersionUID. */
         private static final long serialVersionUID = 771471529351045470L;
-        /** Logger for this class. */
         private final transient Logger logger = Logger.getLogger("com.tmax.probus.dq.collection");
-        /** The repo_. */
+        /** The id. */
+        final String id_;
+        /** The repo */
         private final transient ConcurrentMap<K, Node<K, E>> repo_;
         /** 큐의 head이다. */
         private final transient Node<K, E> head_;
-        /** The tail_. */
+        /** The tail. */
         private final transient Node<K, E> tail_;
-        /** The capacity. */
+        /** The maximum size. */
         private int maxSize_;
-        /** The count. */
+        /** head와 tail 사이의 노드 갯수. */
         private final transient AtomicInteger count_ = new AtomicInteger(0);
-        /** The full count. */
+        /** repo에 존재하는 전체 노드 갯수 */
         private final transient AtomicInteger fullCount_ = new AtomicInteger(0);
-        /** The lock_. */
         private final transient Lock lock_ = new ReentrantLock();
         /** Wait queue for waiting takes. */
         private final transient Condition notEmpty_ = lock_.newCondition();
         /** Wait queue for waiting puts. */
         private final transient Condition notFull_ = lock_.newCondition();
-        /** The NULL node. */
         private final transient Node<K, E> NULL_NODE = new Node<K, E>(null);
         {
             NULL_NODE.prev = NULL_NODE.next = NULL_NODE;
@@ -224,20 +220,10 @@ public class DqCollections {
         /** The Constant NANO_BASE. */
         private static final long NANO_BASE = System.nanoTime();
 
-        /**
-         * Instantiates a new dq backup queue.
-         * @param id the id
-         */
         private DqCollection(final String id) {
             this(id, Integer.MAX_VALUE, 128);
         }
 
-        /**
-         * Instantiates a new dq backup queue.
-         * @param id the id
-         * @param maxSize the max size
-         * @param mapCapacity the map capacity
-         */
         private DqCollection(final String id, final int maxSize, final int mapCapacity) {
             if (id == null || maxSize <= 0 || mapCapacity <= 0) throw new IllegalArgumentException();
             id_ = id;
@@ -248,11 +234,6 @@ public class DqCollections {
 
         // (non-Javadoc)
         // @see java.util.AbstractQueue#addAll(java.util.Collection)
-        /**
-         * Adds the all.
-         * @param collection the collection
-         * @return true, if successful
-         */
         @Override public final boolean addAll(final Collection<? extends E> collection) {
             if (collection == null) throw new NullPointerException();
             if (collection == this) throw new IllegalArgumentException();
@@ -292,6 +273,25 @@ public class DqCollections {
             } finally {
                 lock.unlock();
             }
+        }
+
+        // (non-Javadoc)
+        // @see com.tmax.probus.dq.collection.IDqSolidOperator#removeTimedOutSolidly(long, java.util.concurrent.TimeUnit)
+        @Override public List<E> clearTimedOutSolidly(final long timeout, final TimeUnit unit) {
+            if (logger.isLoggable(FINER)) logger.entering("DqCollection", "clearTimedOutSolidly(long=" + timeout + ", TimeUnit=" + unit + ")", "start");
+            if (timeout < 0) throw new IllegalArgumentException();
+            final List<E> olds = new ArrayList<E>();
+            final long limit = unit.toNanos(timeout);
+            final Lock lock = lock_;
+            lock.lock();
+            try {
+                for (final Node<K, E> node : repo_.values())
+                    if (node.getElapsedTime() > limit) olds.add(unlinkSolidly(node));
+            } finally {
+                lock.unlock();
+            }
+            if (logger.isLoggable(FINER)) logger.exiting("DqCollection", "clearTimedOutSolidly(long, TimeUnit)", "end - return value=" + olds);
+            return olds;
         }
 
         // (non-Javadoc)
@@ -377,6 +377,25 @@ public class DqCollections {
             final E e = peekLast();
             if (e == null) throw new NoSuchElementException();
             return e;
+        }
+
+        // (non-Javadoc)
+        // @see com.tmax.probus.dq.collection.IDqSolidOperator#getTimedOutSolidly(long, java.util.concurrent.TimeUnit)
+        @Override public List<E> getTimedOutSolidly(final long timeout, final TimeUnit unit) {
+            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "getTimedOutSolidly");
+            if (timeout < 0) throw new IllegalArgumentException();
+            final List<E> olds = new ArrayList<E>();
+            final long limit = unit.toNanos(timeout);
+            final Lock lock = lock_;
+            lock.lock();
+            try {
+                for (final Node<K, E> node : repo_.values())
+                    if (node.getElapsedTime() > limit) olds.add(node.element);
+            } finally {
+                lock.unlock();
+            }
+            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "getTimedOutSolidly");
+            return olds;
         }
 
         // (non-Javadoc)
@@ -709,29 +728,16 @@ public class DqCollections {
         // (non-Javadoc)
         // @see com.tmax.probus.dq.collection.IDqSolidOperator#removeSolidly(java.lang.Object)
         @Override public final E removeSolidly(final K key) {
+            if (key == null) throw new IllegalArgumentException();
             final Lock lock = lock_;
             lock.lock();
             try {
                 final Node<K, E> node = repo_.get(key);
-                if (node == null) throw new NoSuchElementException();
-                unlinkSolidly(node);
-                return node.element;
+                if (node == null) return null;
+                return unlinkSolidly(node);
             } finally {
                 lock.unlock();
             }
-        }
-
-        // (non-Javadoc)
-        // @see com.tmax.probus.dq.collection.IDqSolidOperator#removeTimedOutSolidly(long, java.util.concurrent.TimeUnit)
-        @Override public List<E> clearTimedOutSolidly(final long timeout, final TimeUnit unit) {
-            if (logger.isLoggable(FINER)) logger.entering("DqCollection", "clearTimedOutSolidly(long=" + timeout + ", TimeUnit=" + unit + ")", "start");
-            if (timeout < 0) throw new IllegalArgumentException();
-            final List<E> olds = new ArrayList<E>();
-            final long limit = unit.toNanos(timeout);
-            for (final Node<K, E> node : repo_.values())
-                if (node.getElapsedTime() > limit) olds.add(removeSolidly(node.getId()));
-            if (logger.isLoggable(FINER)) logger.exiting("DqCollection", "clearTimedOutSolidly(long, TimeUnit)", "end - return value=" + olds);
-            return olds;
         }
 
         // (non-Javadoc)
@@ -958,7 +964,7 @@ public class DqCollections {
          * Unlink solidly.
          * @param node the node
          */
-        private final void unlinkSolidly(final Node<K, E> node) {
+        private final E unlinkSolidly(final Node<K, E> node) {
             if (node == NULL_NODE) throw new IllegalArgumentException("NULL NODE");
             final Node<K, E> existNode = repo_.get(node.getId());
             if (existNode == null) throw new NoSuchElementException("EXISTS");
@@ -971,6 +977,7 @@ public class DqCollections {
             gc(node);
             node.setReal(false);
             notFull_.signal();
+            return node.element;
         }
 
         /**
@@ -992,16 +999,10 @@ public class DqCollections {
         }
 
         private abstract class AbstractItr implements Iterator<E> {
-            /** The next. */
             Node<K, E> next;
-            /** The next item. */
             E nextItem;
-            /** The last ret. */
             Node<K, E> lastRet;
 
-            /**
-             * Instantiates a new abstract itr.
-             */
             public AbstractItr() {
                 final Lock lock = lock_;
                 lock.lock();
@@ -1038,22 +1039,10 @@ public class DqCollections {
                 if (n.element != null) removeLastOccurrence(n);
             }
 
-            /**
-             * First node.
-             * @return the node
-             */
             abstract Node<K, E> firstNode();
 
-            /**
-             * Next node.
-             * @param n the n
-             * @return the node
-             */
             abstract Node<K, E> nextNode(Node<K, E> n);
 
-            /**
-             * Advance.
-             */
             private void advance() {
                 final Lock lock = lock_;
                 lock.lock();
@@ -1065,20 +1054,10 @@ public class DqCollections {
                 }
             }
 
-            /**
-             * Checks if is valid.
-             * @param node the node
-             * @return true, if is valid
-             */
             private final boolean isValid(final Node<K, E> node) {
                 return node != null && node.isReal();
             }
 
-            /**
-             * Succ.
-             * @param n the n
-             * @return the node
-             */
             private final Node<K, E> succ(Node<K, E> n) {
                 for (;;) {
                     final Node<K, E> s = nextNode(n);
@@ -1118,29 +1097,16 @@ public class DqCollections {
             }
         }
 
-        /**
-         * The Class Node.
-         * @param <K> the key type
-         * @param <E> the element type
-         */
         private static final class Node<K, E extends IDqElement<K>> implements Serializable {
             /** The Constant serialVersionUID. */
             private static final long serialVersionUID = -3008752467874171657L;
-            /** The next. */
             Node<K, E> prev;
-            /** The next. */
             Node<K, E> next;
-            /** The element. */
             final E element;
             /** 현재 노드가 head와 tail사이에 존재하는지의 여부이다. */
             boolean isReal_ = true;
-            /** The timestamp. */
             private transient long timestamp = -1L;
 
-            /**
-             * Instantiates a new node.
-             * @param obj the obj
-             */
             Node(final E obj) {
                 element = obj;
             }
@@ -1161,7 +1127,7 @@ public class DqCollections {
             }
 
             /**
-             * Gets the elapsed time.<br/>
+             * Gets the elapsed time from timestamp till now.<br/>
              * timestamp가 음수인 경우는 head-tail구간에서 제외되지 않았다고 본다.
              * @return the elapsed time
              */
@@ -1170,19 +1136,11 @@ public class DqCollections {
                 return System.nanoTime() - NANO_BASE - timestamp;
             }
 
-            /**
-             * Gets the id.
-             * @return the id
-             */
             final K getId() {
                 if (element != null) return element.getId();
                 return null;
             }
 
-            /**
-             * Checks if is real.
-             * @return the isReal
-             */
             final boolean isReal() {
                 return this.isReal_;
             }
@@ -1196,10 +1154,6 @@ public class DqCollections {
                 stampTime();
             }
 
-            /**
-             * Sets the real.
-             * @param isReal the isReal to set
-             */
             final void setReal(final boolean isReal) {
                 this.isReal_ = isReal;
             }
