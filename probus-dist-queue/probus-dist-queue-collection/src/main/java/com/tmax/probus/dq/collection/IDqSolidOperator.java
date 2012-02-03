@@ -12,6 +12,11 @@
  */
 package com.tmax.probus.dq.collection;
 
+
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+
 /**
  * DqCollections에서 물리적으로 실제 데이터를 삭제하거나 사용할 수 있도록 하는 인터페이스이다.
  * @param <K> the key type
@@ -45,4 +50,6 @@ public interface IDqSolidOperator<K, V> {
      * @return the v
      */
     V putSolidly(K key, V value);
+
+    List<V> removeTimedOutSolidly(long timeout, TimeUnit unit);
 }
