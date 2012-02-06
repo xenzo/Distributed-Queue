@@ -248,8 +248,8 @@ public class DqCollections {
      * @see java.util.concurrent.LinkedBlockingDeque
      */
     private static final class DqCollection<K, E extends IDqElement<K>> extends AbstractQueue<E>
-            implements IDqSolidOperator<K, E>, IDqMap<K, E>, IDqStack<E>, BlockingDeque<E>,
-            BlockingQueue<E>, Serializable {
+            implements IDqSolidOperator<K, E>, IDqMap<K, E>, IDqStack<E>, IDqDeque<K, E>,
+            Serializable {
         private static final long serialVersionUID = 771471529351045470L;
         /** The Constant NANO_BASE. */
         private static final long NANO_BASE = System.nanoTime();
@@ -308,7 +308,7 @@ public class DqCollections {
             try {
                 boolean modified = false;
                 for (final E e : collection)
-                    if (linkLast(new Node<K, E>(e))) modified = true;
+                    if (linkLast(newNode(e))) modified = true;
                 return modified;
             } finally {
                 lock.unlock();
@@ -352,7 +352,7 @@ public class DqCollections {
             lock.lock();
             try {
                 for (final Node<K, E> node : repo_.values())
-                    if (node.getElapsedTime() > limit) olds.add(unlinkSolidly(node));
+                    if (node.getElapsedTime() > limit && !node.isReal()) olds.add(unlinkSolidly(node));
             } finally {
                 lock.unlock();
             }
@@ -400,6 +400,12 @@ public class DqCollections {
         }
 
         // (non-Javadoc)
+        // @see com.tmax.probus.dq.collection.IDqQueue#eliminate(java.lang.Object)
+        @Override public E eliminate(final K key) {
+            return removeSolidly(key);
+        }
+
+        // (non-Javadoc)
         // @see com.tmax.probus.dq.collection.IDqSolidOperator#findSolidly(java.lang.Object)
         @Override public final E findSolidly(final K key) {
             final Node<K, E> node = repo_.get(key);
@@ -419,6 +425,12 @@ public class DqCollections {
             final Node<K, E> node = repo_.get(key);
             if (node == null || !node.isReal()) return null;
             return node.element;
+        }
+
+        // (non-Javadoc)
+        // @see com.tmax.probus.dq.collection.IDqQueue#getExpiredList()
+        @Override public List<E> getExpiredList() {
+            return getTimedOutSolidly(0, TimeUnit.NANOSECONDS);
         }
 
         // (non-Javadoc)
@@ -456,7 +468,7 @@ public class DqCollections {
             lock.lock();
             try {
                 for (final Node<K, E> node : repo_.values())
-                    if (node.getElapsedTime() > limit) olds.add(node.element);
+                    if (node.getElapsedTime() > limit && !node.isReal()) olds.add(node.element);
             } finally {
                 lock.unlock();
             }
@@ -486,8 +498,7 @@ public class DqCollections {
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#offerFirst(java.lang.Object)
         @Override public final boolean offerFirst(final E e) {
-            if (e == null) throw new NullPointerException();
-            final Node<K, E> node = new Node<K, E>(e);
+            final Node<K, E> node = newNode(e);
             final Lock lock = lock_;
             lock.lock();
             try {
@@ -501,8 +512,7 @@ public class DqCollections {
         // @see java.util.concurrent.BlockingDeque#offerFirst(java.lang.Object, long, java.util.concurrent.TimeUnit)
         @Override public final boolean offerFirst(final E e, final long timeout, final TimeUnit unit)
                 throws InterruptedException {
-            if (e == null) throw new NullPointerException();
-            final Node<K, E> node = new Node<K, E>(e);
+            final Node<K, E> node = newNode(e);
             long nanos = unit.toNanos(timeout);
             final Lock lock = lock_;
             lock.lockInterruptibly();
@@ -520,8 +530,7 @@ public class DqCollections {
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#offerLast(java.lang.Object)
         @Override public final boolean offerLast(final E e) {
-            if (e == null) throw new NullPointerException();
-            final Node<K, E> node = new Node<K, E>(e);
+            final Node<K, E> node = newNode(e);
             final Lock lock = lock_;
             lock.lock();
             try {
@@ -535,8 +544,7 @@ public class DqCollections {
         // @see java.util.concurrent.BlockingDeque#offerLast(java.lang.Object, long, java.util.concurrent.TimeUnit)
         @Override public final boolean offerLast(final E e, final long timeout, final TimeUnit unit)
                 throws InterruptedException {
-            if (e == null) throw new NullPointerException();
-            final Node<K, E> node = new Node<K, E>(e);
+            final Node<K, E> node = newNode(e);
             long nanos = unit.toNanos(timeout);
             final Lock lock = lock_;
             lock.lockInterruptibly();
@@ -683,8 +691,7 @@ public class DqCollections {
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#putFirst(java.lang.Object)
         @Override public final void putFirst(final E e) throws InterruptedException {
-            if (e == null) throw new NullPointerException();
-            final Node<K, E> node = new Node<K, E>(e);
+            final Node<K, E> node = newNode(e);
             final Lock lock = lock_;
             lock.lock();
             try {
@@ -698,8 +705,7 @@ public class DqCollections {
         // (non-Javadoc)
         // @see java.util.concurrent.BlockingDeque#putLast(java.lang.Object)
         @Override public final void putLast(final E e) throws InterruptedException {
-            if (e == null) throw new NullPointerException();
-            final Node<K, E> node = new Node<K, E>(e);
+            final Node<K, E> node = newNode(e);
             final Lock lock = lock_;
             lock.lock();
             try {
@@ -713,11 +719,10 @@ public class DqCollections {
         // (non-Javadoc)
         // @see com.tmax.probus.dq.collection.IDqSolidOperator#putSolidly(java.lang.Object, java.lang.Object)
         @Override public E putSolidly(final K key, final E value) {
-            if (value == null) throw new NullPointerException();
+            final Node<K, E> node = newNode(value);
             final Lock lock = lock_;
             lock.lock();
             try {
-                final Node<K, E> node = new Node<K, E>(value);
                 final E exists = findSolidly(key);
                 if (exists == null) {
                     linkLast(node);
@@ -967,6 +972,17 @@ public class DqCollections {
         }
 
         /**
+         * New node.
+         * @param e the e
+         * @return the node
+         */
+        private Node<K, E> newNode(final E e) {
+            if (e == null) throw new NullPointerException(); // cannot make null node
+            final Node<K, E> node = new Node<K, E>(e);
+            return node;
+        }
+
+        /**
          * Read object. 일단 LinkedBlockingDeque에 있어서 옮겨 놓긴 했지만 고려되지 않았음
          * @param is the is
          * @throws IOException Signals that an I/O exception has occurred.
@@ -1069,11 +1085,11 @@ public class DqCollections {
         }
 
         private abstract class AbstractItr implements Iterator<E> {
-            Node<K, E> next;
-            E nextItem;
-            Node<K, E> lastRet;
+            private Node<K, E> next;
+            private E nextItem;
+            private Node<K, E> lastRet;
 
-            public AbstractItr() {
+            private AbstractItr() {
                 final Lock lock = lock_;
                 lock.lock();
                 try {
@@ -1153,18 +1169,6 @@ public class DqCollections {
             }
         }
 
-        private class JustDoNotEventListener implements IDqItemEventListener<E> {
-            // (non-Javadoc)
-            // @see com.tmax.probus.dq.collection.IDqCollectionListener#processItemAdded(java.lang.Object)
-            @Override public void processItemAdded(E e) {
-            }
-
-            // (non-Javadoc)
-            // @see com.tmax.probus.dq.collection.IDqCollectionListener#processItemRemoved(java.lang.Object)
-            @Override public void processItemRemoved(E e) {
-            }
-        }
-
         private final class Itr extends AbstractItr {
             // (non-Javadoc)
             // @see com.tmax.probus.dq.collection.DqQueueFactory.DqQueue.AbstractItr#firstNode()
@@ -1179,17 +1183,29 @@ public class DqCollections {
             }
         }
 
+        private class JustDoNotEventListener implements IDqItemEventListener<E> {
+            // (non-Javadoc)
+            // @see com.tmax.probus.dq.collection.IDqCollectionListener#processItemAdded(java.lang.Object)
+            @Override public void processItemAdded(final E e) {
+            }
+
+            // (non-Javadoc)
+            // @see com.tmax.probus.dq.collection.IDqCollectionListener#processItemRemoved(java.lang.Object)
+            @Override public void processItemRemoved(final E e) {
+            }
+        }
+
         private static final class Node<K, E extends IDqElement<K>> implements Serializable {
             /** The Constant serialVersionUID. */
             private static final long serialVersionUID = -3008752467874171657L;
-            Node<K, E> prev;
-            Node<K, E> next;
-            final E element;
+            private Node<K, E> prev;
+            private Node<K, E> next;
+            private final E element;
             /** 현재 노드가 head와 tail사이에 존재하는지의 여부이다. */
-            boolean isReal_ = true;
+            private boolean isReal_ = true;
             private transient long timestamp = -1L;
 
-            Node(final E obj) {
+            private Node(final E obj) {
                 element = obj;
             }
 
@@ -1213,17 +1229,17 @@ public class DqCollections {
              * timestamp가 음수인 경우는 head-tail구간에서 제외되지 않았다고 본다.
              * @return the elapsed time
              */
-            final long getElapsedTime() {
+            private final long getElapsedTime() {
                 if (timestamp < 0) return 0;
                 return System.nanoTime() - NANO_BASE - timestamp;
             }
 
-            final K getId() {
+            private final K getId() {
                 if (element != null) return element.getId();
                 return null;
             }
 
-            final boolean isReal() {
+            private final boolean isReal() {
                 return this.isReal_;
             }
 
@@ -1231,12 +1247,12 @@ public class DqCollections {
              * head와 tail 사이에서 제외되었음을 설정한다.<br/>
              * 논리적 삭제가 되는 순간에 timestamp를 설정하여 timeout 등의 용도로 사용한다.
              */
-            final void notReal() {
+            private final void notReal() {
                 isReal_ = false;
                 stampTime();
             }
 
-            final void setReal(final boolean isReal) {
+            private final void setReal(final boolean isReal) {
                 this.isReal_ = isReal;
             }
 
@@ -1244,7 +1260,7 @@ public class DqCollections {
              * Stamp time.
              * @return the long
              */
-            long stampTime() {
+            private final long stampTime() {
                 timestamp = System.nanoTime() - NANO_BASE;
                 return timestamp;
             }
