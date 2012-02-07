@@ -28,11 +28,13 @@ public class DqBufferPool {
      */
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.dq.nio");
     private final Map<Integer, ByteBuffer> bufferPool_ = new ConcurrentHashMap<Integer, ByteBuffer>();
+    private static long TOTAL_SIZE;
+    private static int UNIT_SIZE;
 
     /**
      * @param length
      */
-    public ByteBuffer getBuffer(final long length) {
+    public ByteBuffer getBuffer(final int length) {
         return null;
     }
 }

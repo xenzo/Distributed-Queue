@@ -97,15 +97,21 @@ public interface IDqReactor extends Runnable {
         void handleAccept(SelectionKey key);
 
         /**
-         * Handle write.
+         * Handle connect.
          * @param key the key
          */
-        void handleWrite(SelectionKey key);
+        void handleConnect(SelectionKey key);
 
         /**
          * Handle read.
          * @param key the key
          */
         void handleRead(SelectionKey key);
+
+        /**
+         * Handle write.
+         * @param key the key
+         */
+        void handleWrite(SelectionKey key);
     }
 }

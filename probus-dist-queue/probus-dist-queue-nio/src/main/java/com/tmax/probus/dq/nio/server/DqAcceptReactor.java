@@ -20,6 +20,7 @@ import java.net.Socket;
 import java.net.SocketAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -127,5 +128,73 @@ public class DqAcceptReactor extends AbstractDqReactor {
     // @see com.tmax.probus.dq.nio.DqReactorBase#getSelectTimeout()
     @Override protected long getSelectTimeout() {
         return getNode().serverInfo().getSelectTimeout();
+    }
+
+    // (non-Javadoc)
+    // @see com.tmax.probus.dq.api.IDqReactor#createSelectionHandler()
+    @Override public IDqReactorHandler createSelectionHandler() {
+        return new AcceptHandler();
+    }
+
+    /**
+     * The Class AcceptHandler.
+     */
+    public class AcceptHandler implements IDqReactorHandler {
+        // (non-Javadoc)
+        // @see com.tmax.probus.dq.api.IDqReactor.IDqReactorHandler#handleAccept(java.nio.channels.SelectionKey)
+        @Override public void handleAccept(SelectionKey key) {
+            try {
+                if (!key.isValid() || !key.isAcceptable()) return;
+                final SocketChannel channel = ((ServerSocketChannel) key.channel()).accept();
+                final boolean success = channel.finishConnect();
+                if (success) {
+                    IDqSession session = null;
+                    if (key.attachment() == null) {
+                        session = createSession();
+                        key.attach(session);
+                    }
+                    session = (IDqSession) key.attachment();
+                    final IDqSession fSession = session;
+                    initSocket(channel.socket());
+                    final IDqReactor reactor = getIoReactor();
+                    reactor.addPendingJob(new Runnable() {
+                        @Override public void run() {
+                            try {
+                                reactor.register(channel, SelectionKey.OP_READ, fSession);
+                            } catch (final IOException ex) {
+                                logger.log(WARNING, "" + ex.getMessage(), ex);
+                            }
+                        }
+                    });
+                    reactor.wakeupSelector();
+                }
+            } catch (final IOException ex) {
+                logger.log(WARNING, "" + ex.getMessage(), ex);
+            }
+        }
+
+        // (non-Javadoc)
+        // @see com.tmax.probus.dq.api.IDqReactor.IDqReactorHandler#handleWrite(java.nio.channels.SelectionKey)
+        @Override public void handleWrite(SelectionKey key) {
+            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "handleWrite");
+            // XXX must do something
+            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "handleWrite");
+        }
+
+        // (non-Javadoc)
+        // @see com.tmax.probus.dq.api.IDqReactor.IDqReactorHandler#handleRead(java.nio.channels.SelectionKey)
+        @Override public void handleRead(SelectionKey key) {
+            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "handleRead");
+            // XXX must do something
+            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "handleRead");
+        }
+
+        // (non-Javadoc)
+        // @see com.tmax.probus.dq.api.IDqReactor.IDqReactorHandler#handleConnect(java.nio.channels.SelectionKey)
+        @Override public void handleConnect(SelectionKey key) {
+            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "handleConnect");
+            // XXX must do something
+            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "handleConnect");
+        }
     }
 }

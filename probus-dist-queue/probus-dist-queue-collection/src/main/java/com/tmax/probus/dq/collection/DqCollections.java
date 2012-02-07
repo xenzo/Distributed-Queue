@@ -275,6 +275,7 @@ public class DqCollections {
         private final transient Condition notEmpty_ = lock_.newCondition();
         /** Wait queue for waiting puts. */
         private final transient Condition notFull_ = lock_.newCondition();
+        /** The NULL node. head/tail is this. */
         private final transient Node<K, E> NULL_NODE = new Node<K, E>(null);
         {
             NULL_NODE.prev = NULL_NODE.next = NULL_NODE;

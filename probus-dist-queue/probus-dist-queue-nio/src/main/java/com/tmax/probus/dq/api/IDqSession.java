@@ -12,21 +12,8 @@
  */
 package com.tmax.probus.dq.api;
 
-
-import java.net.Socket;
-
-
 /**
  *
  */
 public interface IDqSession {
-    /**
-     * @param socket
-     */
-    void setSocket(Socket socket);
-
-    /**
-     * @param reactor
-     */
-    void setIoReactor(IDqReactor reactor);
 }

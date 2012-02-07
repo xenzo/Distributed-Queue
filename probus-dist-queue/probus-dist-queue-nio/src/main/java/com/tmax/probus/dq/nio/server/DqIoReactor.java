@@ -90,7 +90,7 @@ public class DqIoReactor extends AbstractDqReactor {
     @Override protected IDqReactor getIoReactor() {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "getIoReactor");
         // XXX must do something
-        return null;
+        return getNode().clientInfo().getIoReactor();
     }
 
     // (non-Javadoc)
@@ -127,6 +127,14 @@ public class DqIoReactor extends AbstractDqReactor {
             // XXX must do something
             listener_.messageSending(key);
             if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "handleWrite");
+        }
+
+        // (non-Javadoc)
+        // @see com.tmax.probus.dq.api.IDqReactor.IDqReactorHandler#handleConnect(java.nio.channels.SelectionKey)
+        @Override public void handleConnect(SelectionKey key) {
+            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "handleConnect");
+            // XXX must do something
+            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "handleConnect");
         }
     }
 }
