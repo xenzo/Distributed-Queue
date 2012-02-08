@@ -23,6 +23,7 @@ import java.util.logging.Logger;
 
 import com.tmax.probus.dq.DqNode;
 import com.tmax.probus.dq.api.IDqWorker;
+import com.tmax.probus.dq.util.IDqByteBuffer;
 
 
 /**
@@ -31,8 +32,6 @@ import com.tmax.probus.dq.api.IDqWorker;
 public abstract class AbstractDqReadWorker implements IDqWorker {
     /** The channel_. */
     private final SocketChannel channel_;
-    /** The data buffer_. */
-    private ByteBuffer dataBuffer_;
     /** The key_. */
     private final SelectionKey key_;
     /** The length_. */
@@ -61,7 +60,7 @@ public abstract class AbstractDqReadWorker implements IDqWorker {
         channel_ = (SocketChannel) key.channel();
         protocol_ = protocol;
         length_ = length;
-        if (length_ > 0) dataBuffer_ = node_.getBufferPool().getBuffer(length);
+        if (length <= 0) throw new IllegalArgumentException();
     }
 
     /**
@@ -69,7 +68,7 @@ public abstract class AbstractDqReadWorker implements IDqWorker {
      * @return the dataBuffer
      */
     @Override public ByteBuffer getDataBuffer() {
-        return dataBuffer_;
+        return null;
     }
 
     // (non-Javadoc)
@@ -106,25 +105,33 @@ public abstract class AbstractDqReadWorker implements IDqWorker {
     // @see java.lang.Runnable#run()
     @Override public void run() {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "run");
-        if (length_ > 0) {
-            int nRead = -1;
-            try {
-                dataBuffer_.clear();
-                while (nRead >= 0 && dataBuffer_.hasRemaining())
-                    nRead = channel_.read(dataBuffer_);
-            } catch (final IOException ex) {
-                logger.log(WARNING, "" + ex.getMessage(), ex);
-            }
-            if (nRead < 0) {
+        IDqByteBuffer buffer = null;
+        try {
+            buffer = node_.getBufferPool().getBuffer();
+            buffer.init(length_);
+            ByteBuffer dataBuffer_ = buffer.getByteBuffer();
+            if (length_ > 0) {
+                int nRead = -1;
                 try {
-                    channel_.close();
+                    dataBuffer_.clear();
+                    while (nRead >= 0 && dataBuffer_.hasRemaining())
+                        nRead = channel_.read(dataBuffer_);
                 } catch (final IOException ex) {
                     logger.log(WARNING, "" + ex.getMessage(), ex);
                 }
-                key_.cancel();
-                return;
+                if (nRead < 0) {
+                    try {
+                        channel_.close();
+                    } catch (final IOException ex) {
+                        logger.log(WARNING, "" + ex.getMessage(), ex);
+                    }
+                    key_.cancel();
+                    return;
+                }
+                process();
             }
-            process();
+        } finally {
+            if (buffer != null) buffer.release();
         }
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "run");
     }

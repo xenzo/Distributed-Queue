@@ -1,5 +1,5 @@
 /*
- * DqBuffer.java Version 1.0 Jan 27, 2012
+ * IDqByteBuffer.java Version 1.0 Feb 7, 2012
  * *
  * Copyright (c) 2010 by Tmax Soft co., Ltd.
  * All rights reserved.
@@ -14,22 +14,15 @@ package com.tmax.probus.dq.util;
 
 
 import java.nio.ByteBuffer;
-import java.nio.channels.SocketChannel;
-import java.util.logging.Logger;
 
 
 /**
  *
  */
-public class DqBuffer {
-    /**
-     * Logger for this class
-     */
-    private final transient Logger logger = Logger.getLogger("com.tmax.probus.dq.nio");
-    SocketChannel channel;
-    ByteBuffer buffer;
+public interface IDqByteBuffer {
+    public abstract void release();
 
-    public int read() {
-        return 9;
-    }
+    public abstract void init(int size);
+
+    public abstract ByteBuffer getByteBuffer();
 }
