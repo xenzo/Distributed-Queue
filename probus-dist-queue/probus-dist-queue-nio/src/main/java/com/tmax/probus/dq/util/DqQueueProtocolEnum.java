@@ -16,24 +16,28 @@ package com.tmax.probus.dq.util;
  * The Enum DqProtocolEnum.
  */
 public enum DqQueueProtocolEnum {
-    /** The NONE. */
-    NONE("NON"),
-    /** The LOCK. */
-    LOCK("LCK"),
-    /** The UNLOCK. */
-    UNLOCK("ULK"),
-    /** The PUSH. */
-    PUSH("PUS"),
-    /** The TAKE. */
-    TAKE("TKE"),
-    /** The POP. */
-    POP("POP"),
-    /** The POLL. */
-    POLL("POL"),
     /** The ACK. */
-    ACK("ACK"),
+    ACK("ACK_"),
+    /** The GE t_ first. */
+    GET_FIRST("GETF"),
+    /** The GE t_ last. */
+    GET_LAST("GETL"),
+    /** The LOCK. */
+    LOCK("LOCK"),
     /** The NACK. */
-    NACK("NCK");
+    NACK("NACK"),
+    /** The NONE. */
+    NONE("NONE"),
+    /** The OFFER. */
+    OFFER("OFER"),
+    /** The PU t_ first. */
+    PUT_FIRST("PUTF"),
+    /** The PU t_ last. */
+    PUT_LAST("PUTL"),
+    /** The TAKE. */
+    TAKE("TAKE"),
+    /** The UNLOCK. */
+    UNLOCK("UNLK");
     /** The protocol_. */
     private final String protocol_;
 

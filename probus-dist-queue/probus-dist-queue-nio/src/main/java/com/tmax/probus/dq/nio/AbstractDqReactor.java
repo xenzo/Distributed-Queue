@@ -70,11 +70,10 @@ public abstract class AbstractDqReactor implements IDqReactor {
     // (non-Javadoc)
     // @see com.tmax.probus.dq.api.IDqReactor#processPendingJobs()
     @Override public void processPendingJobs() {
-        while (isLive()) {
-            final Runnable runnable = pendingQueue_.poll();
-            if (runnable == null) { return; }
-            runnable.run();
-        }
+        //        while (isLive()) {
+        final Runnable runnable = pendingQueue_.poll();
+        if (runnable != null) runnable.run();
+        //        }
     }
 
     /**

@@ -15,7 +15,7 @@ package com.tmax.probus.dq;
 
 import java.util.logging.Logger;
 
-import com.tmax.probus.dq.util.DqBufferPool;
+import com.tmax.probus.nio.util.DqBufferPool;
 
 
 /**

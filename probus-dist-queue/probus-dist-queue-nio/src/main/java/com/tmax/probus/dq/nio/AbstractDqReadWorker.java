@@ -23,7 +23,7 @@ import java.util.logging.Logger;
 
 import com.tmax.probus.dq.DqNode;
 import com.tmax.probus.dq.api.IDqWorker;
-import com.tmax.probus.dq.util.IDqByteBuffer;
+import com.tmax.probus.nio.util.IDqByteBuffer;
 
 
 /**

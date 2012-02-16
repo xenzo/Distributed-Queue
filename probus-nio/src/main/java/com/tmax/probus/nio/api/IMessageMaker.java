@@ -1,5 +1,5 @@
 /*
- * IDqByteBuffer.java Version 1.0 Feb 7, 2012
+ * IMessageMaker.java Version 1.0 Feb 15, 2012
  * *
  * Copyright (c) 2010 by Tmax Soft co., Ltd.
  * All rights reserved.
@@ -10,7 +10,7 @@
  * and shall use it only in accordance with the terms of the license agreement
  * entered into with Tmax Soft co., Ltd.
  */
-package com.tmax.probus.dq.util;
+package com.tmax.probus.nio.api;
 
 
 import java.nio.ByteBuffer;
@@ -19,10 +19,9 @@ import java.nio.ByteBuffer;
 /**
  *
  */
-public interface IDqByteBuffer {
-    public abstract void release();
-
-    public abstract void init(int size);
-
-    public abstract ByteBuffer getByteBuffer();
+public interface IMessageMaker {
+    /**
+     * @param readBuffer
+     */
+    void putData(ByteBuffer readBuffer);
 }
