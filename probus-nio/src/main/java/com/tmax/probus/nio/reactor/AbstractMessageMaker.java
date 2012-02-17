@@ -63,25 +63,25 @@ public abstract class AbstractMessageMaker implements IMessageMaker {
     }
 
     /**
-     * Compute message length.
+     * Header와 Body를 포함한 메세지 총 길이를 반환해야 한다.
      * @param header the header
-     * @return the int
+     * @return 메세지 총 길이
      */
     abstract protected int computeMessageLength(byte[] header);
 
     /**
      * Gets the header length.
-     * @return the header length
+     * @return 헤더의 길이를 반환해야 한다.
      */
     abstract protected int getHeaderLength();
 
     /**
-     * Copy buffer2 byte array.
-     * @param src the src
-     * @param tar the tar
-     * @param length the length
-     * @param offset the offset
-     * @return the int
+     * ByteBuffer의 데이터를 읽어들여 byte 배열에 복사한다.
+     * @param src 읽어들일 버퍼
+     * @param tar 기입할 byte 배열
+     * @param 기입할 길이
+     * @param 기입 시작 위치
+     * @return 기입한 길이를 반환한다.
      */
     private int copyBuffer2ByteArray(final ByteBuffer src, final byte[] tar, final int length, final int offset) {
         final int len = Math.min(length - offset, src.remaining());
