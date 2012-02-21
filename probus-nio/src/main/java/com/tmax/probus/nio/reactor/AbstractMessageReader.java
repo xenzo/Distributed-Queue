@@ -15,14 +15,13 @@ package com.tmax.probus.nio.reactor;
 
 import java.nio.ByteBuffer;
 
-import com.tmax.probus.nio.api.IMessageMaker;
-import com.tmax.probus.nio.api.ISession;
+import com.tmax.probus.nio.api.IMessageReader;
 
 
 /**
  * The Class AbstractMessageMaker.
  */
-public abstract class AbstractMessageMaker implements IMessageMaker {
+public abstract class AbstractMessageReader implements IMessageReader {
     /** The header_. */
     protected byte[] header_;
     /** The message_. */
@@ -31,13 +30,11 @@ public abstract class AbstractMessageMaker implements IMessageMaker {
     protected State state_ = State.HEADER;
     /** The offset_. */
     protected int offset_ = 0;
-    /** The session_. */
-    protected ISession session_;
     int messageLength_ = 0;
 
     // (non-Javadoc)
     // @see com.tmax.probus.nio.api.IMessageMaker#putData(java.nio.ByteBuffer)
-    @Override public void putData(final ByteBuffer buffer) {
+    @Override public boolean readBuffer(final ByteBuffer buffer) {
         switch (state_) {
         case HEADER:
             if (header_ == null) header_ = new byte[getHeaderLength()];
@@ -56,11 +53,15 @@ public abstract class AbstractMessageMaker implements IMessageMaker {
                 message_ = null;
                 state_ = State.HEADER;
                 offset_ = 0;
-                session_.processMessageReceived(msg);
+                onMessageReceivedComplete(msg);
+                return true;
             }
             break;
         }
+        return false;
     }
+
+    abstract protected void onMessageReceivedComplete(byte[] msg);
 
     /**
      * Header와 Body를 포함한 메세지 총 길이를 반환해야 한다.

@@ -142,7 +142,7 @@ public class Acceptor extends AbstractIoReactor implements IAcceptor {
 
     // (non-Javadoc)
     // @see com.tmax.probus.nio.reactor.AbstractReactor#createSession(java.nio.channels.ServerSocketChannel, java.nio.channels.SocketChannel)
-    @Override protected ISession createSession(ServerSocketChannel serverChannel, SocketChannel channel) {
+    @Override protected ISession createSession(SelectableChannel serverChannel, SocketChannel channel) {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "createSession");
         // XXX must do something
         return null;

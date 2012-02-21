@@ -23,8 +23,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
-import com.tmax.probus.nio.api.IInterestOptsStrategy;
-import com.tmax.probus.nio.api.IMessageMaker;
+import com.tmax.probus.nio.api.IMessageReader;
 import com.tmax.probus.nio.api.IMessageWrapper;
 import com.tmax.probus.nio.api.ISession;
 
@@ -41,12 +40,8 @@ public abstract class AbstractSession implements ISession {
     private final Lock readBufferLock_ = new ReentrantLock(true);
     /** The write queue lock_. */
     private final Lock writeQueueLock_ = new ReentrantLock(true);
-    /** The strategy_. */
-    private final IInterestOptsStrategy strategy_;
     /** The read buffer wrapper_. */
     private IMessageWrapper readBufferWrapper_;
-    /** The maker_. */
-    private IMessageMaker maker_;
     /** The channel_. */
     private SocketChannel channel_;
 
@@ -57,9 +52,8 @@ public abstract class AbstractSession implements ISession {
      * @param readBufferWrapper the read buffer wrapper
      * @param readBufferSize the read buffer size
      */
-    public AbstractSession(final SocketChannel channel, final IInterestOptsStrategy strategy, final IMessageWrapper readBufferWrapper) {
+    protected AbstractSession(final SocketChannel channel, final IMessageWrapper readBufferWrapper) {
         channel_ = channel;
-        strategy_ = strategy;
         readBufferWrapper_ = readBufferWrapper;
         if (!readBufferWrapper_.isValid()) throw new IllegalArgumentException();
     }
@@ -107,49 +101,20 @@ public abstract class AbstractSession implements ISession {
     }
 
     // (non-Javadoc)
-    // @see com.tmax.probus.nio.api.ISession#getInterestOptsStrategy()
-    @Override public IInterestOptsStrategy getInterestOptsStrategy() {
-        return strategy_;
-    }
-
-    // (non-Javadoc)
     // @see com.tmax.probus.nio.api.ISession#processMessageRead(java.nio.ByteBuffer)
-    @Override public void onMessageRead() {
+    @Override public boolean onMessageRead() {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "processMessageRead");
         final Lock lock = readBufferLock_;
         lock.lock();
         try {
             readBufferWrapper_.flip();
-            maker_.putData(readBufferWrapper_.getByteBuffer());
+            final boolean result = getMessageReader().readBuffer(readBufferWrapper_.getByteBuffer());
             readBufferWrapper_.compact();
+            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "processMessageRead");
+            return result;
         } finally {
             lock.unlock();
         }
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "processMessageRead");
-    }
-
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.api.ISession#processMessageReceived(java.nio.ByteBuffer)
-    @Override public void processMessageReceived(final byte[] message) {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "processMessageReceived");
-        // XXX must do something
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "processMessageReceived");
-    }
-
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.api.ISession#processMessageSended(java.nio.ByteBuffer)
-    @Override public void processMessageSended(final byte[] message) {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "processMessageSended");
-        // XXX must do something
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "processMessageSended");
-    }
-
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.api.ISession#processMessageWrite(java.nio.ByteBuffer)
-    @Override public void onMessageWrite(final ByteBuffer readBuffer) {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "processMessageWrite");
-        // XXX must do something
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "processMessageWrite");
     }
 
     // (non-Javadoc)
@@ -166,6 +131,22 @@ public abstract class AbstractSession implements ISession {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "onSessionOpened");
         // XXX must do something
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "onSessionOpened");
+    }
+
+    // (non-Javadoc)
+    // @see com.tmax.probus.nio.api.ISession#processMessageReceived(java.nio.ByteBuffer)
+    @Override public void processMessageReceived(final byte[] message) {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "processMessageReceived");
+        // XXX must do something
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "processMessageReceived");
+    }
+
+    // (non-Javadoc)
+    // @see com.tmax.probus.nio.api.ISession#processMessageSended(java.nio.ByteBuffer)
+    @Override public void processMessageSended(final byte[] message) {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "processMessageSended");
+        // XXX must do something
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "processMessageSended");
     }
 
     // (non-Javadoc)
@@ -203,4 +184,9 @@ public abstract class AbstractSession implements ISession {
      * @return the i byte buffer carrier
      */
     abstract protected IMessageWrapper createWriteMessageWrapper(byte[] msg, int offset, int length);
+
+    /**
+     * @return
+     */
+    abstract protected IMessageReader getMessageReader();
 }

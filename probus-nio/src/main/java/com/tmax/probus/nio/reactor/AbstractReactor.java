@@ -15,6 +15,7 @@ package com.tmax.probus.nio.reactor;
 
 import static java.util.logging.Level.*;
 
+import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
@@ -186,8 +187,9 @@ public abstract class AbstractReactor implements IReactor {
      * Handle accept.
      * @param key the key
      * @return true, if successful
+     * @throws IOException
      */
-    protected void handleAccept(final SelectionKey key) {
+    protected void handleAccept(final SelectionKey key) throws IOException {
         throw new UnsupportedOperationException();
     }
 
@@ -195,8 +197,9 @@ public abstract class AbstractReactor implements IReactor {
      * Handle connect.
      * @param key the key
      * @return true, if successful
+     * @throws IOException
      */
-    protected void handleConnect(final SelectionKey key) {
+    protected void handleConnect(final SelectionKey key) throws IOException {
         throw new UnsupportedOperationException();
     }
 
@@ -204,8 +207,9 @@ public abstract class AbstractReactor implements IReactor {
      * Handle read.
      * @param key the key
      * @return true, if successful
+     * @throws IOException
      */
-    protected void handleRead(final SelectionKey key) {
+    protected void handleRead(final SelectionKey key) throws IOException {
         throw new UnsupportedOperationException();
     }
 
@@ -213,8 +217,9 @@ public abstract class AbstractReactor implements IReactor {
      * Handle write.
      * @param key the key
      * @return true, if successful
+     * @throws IOException
      */
-    protected void handleWrite(final SelectionKey key) {
+    protected void handleWrite(final SelectionKey key) throws IOException {
         throw new UnsupportedOperationException();
     }
 
@@ -248,8 +253,9 @@ public abstract class AbstractReactor implements IReactor {
 
     /**
      * Process change request.
+     * @throws ClosedChannelException
      */
-    private final void processChangeRequest() {
+    private final void processChangeRequest() throws IOException {
         if (logger.isLoggable(FINER)) logger.entering("AbstractReactor", "processChangeRequest()", "start");
         ChangeRequest request = null;
         while ((request = pendingChangeRequest_.poll()) != null) {
@@ -258,11 +264,7 @@ public abstract class AbstractReactor implements IReactor {
                 request.channel.keyFor(getSelector()).interestOps(request.opt);
                 break;
             case REGISTER:
-                try {
-                    request.channel.register(getSelector(), request.opt, request.attachment);
-                } catch (final ClosedChannelException ex) {
-                    logger.logp(SEVERE, "AbstractReactor", "processChangeRequest()", "", ex);
-                }
+                request.channel.register(getSelector(), request.opt, request.attachment);
                 break;
             case DEREGISTER:
                 final SelectionKey key = request.channel.keyFor(getSelector());

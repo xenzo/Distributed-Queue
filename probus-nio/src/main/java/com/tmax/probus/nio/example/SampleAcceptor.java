@@ -13,7 +13,6 @@
 package com.tmax.probus.nio.example;
 
 
-import com.tmax.probus.nio.api.IInterestOptsStrategy;
 import com.tmax.probus.nio.api.IReactor;
 import com.tmax.probus.nio.reactor.Acceptor;
 
@@ -21,15 +20,13 @@ import com.tmax.probus.nio.reactor.Acceptor;
 public class SampleAcceptor extends Acceptor {
     /**  */
     IReactor ioReactor_;
-    IInterestOptsStrategy strategy_;
 
     /**
      * @param strategy
      * @param sampleServer TODO
      */
-    public SampleAcceptor(IReactor ioReactor, IInterestOptsStrategy strategy) {
+    public SampleAcceptor(IReactor ioReactor) {
         ioReactor_ = ioReactor;
-        strategy_ = strategy;
     }
 
     // (non-Javadoc)

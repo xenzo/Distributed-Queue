@@ -13,19 +13,28 @@
 package com.tmax.probus.nio.example;
 
 
-import static java.util.logging.Level.*;
-
-import java.util.logging.Logger;
-
+import com.tmax.probus.nio.api.IReactor;
 import com.tmax.probus.nio.reactor.Connector;
 
 
 /**
  *
  */
-public class SampleClient extends Connector {
+public class SampleConnector extends Connector {
+    /**  */
+    IReactor ioReactor_;
+
     /**
-     * Logger for this class
+     * @param strategy
+     * @param sampleServer TODO
      */
-    private final transient Logger logger = Logger.getLogger("com.tmax.probus.nio.example");
+    public SampleConnector(IReactor ioReactor) {
+        ioReactor_ = ioReactor;
+    }
+
+    // (non-Javadoc)
+    // @see com.tmax.probus.nio.reactor.AbstractReactor#getIoReactor()
+    @Override public IReactor getIoReactor() {
+        return ioReactor_;
+    }
 }

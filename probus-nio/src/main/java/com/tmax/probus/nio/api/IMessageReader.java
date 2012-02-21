@@ -19,9 +19,10 @@ import java.nio.ByteBuffer;
 /**
  *
  */
-public interface IMessageMaker {
+public interface IMessageReader {
     /**
      * @param readBuffer
+     * @return
      */
-    void putData(ByteBuffer readBuffer);
+    boolean readBuffer(ByteBuffer readBuffer);
 }

@@ -58,15 +58,15 @@ public interface ISession {
     IInterestOptsStrategy getInterestOptsStrategy();
 
     /**
-     * Process message read.
+     *
      */
-    void onMessageRead();
+    void onErrorOccured();
 
     /**
-     * Process message write.
-     * @param buffer the buffer
+     * Process message read.
+     * @return
      */
-    void onMessageWrite(ByteBuffer buffer);
+    boolean onMessageRead();
 
     /**
      * Process session closed.
@@ -113,9 +113,4 @@ public interface ISession {
      * @param length the length
      */
     void writeMessage(byte[] msg, int offset, int length);
-
-    /**
-     *
-     */
-    void onErrorOccured();
 }

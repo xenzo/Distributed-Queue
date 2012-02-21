@@ -240,22 +240,29 @@ public final class ByteBufferPool {
         /** The buffer_. */
         private ByteBuffer buffer_;
 
+        private void check() {
+            if (buffer_ == null) throw new IllegalStateException();
+        }
+
         // (non-Javadoc)
         // @see com.tmax.probus.nio.api.IMessageWrapper#clear()
         @Override public void clear() {
-            if (buffer_ != null) buffer_.clear();
+            check();
+            buffer_.clear();
         }
 
         // (non-Javadoc)
         // @see com.tmax.probus.nio.api.IMessageWrapper#compact()
         @Override public void compact() {
-            if (buffer_ != null) buffer_.compact();
+            check();
+            buffer_.compact();
         }
 
         // (non-Javadoc)
         // @see com.tmax.probus.nio.api.IMessageWrapper#flip()
         @Override public void flip() {
-            if (buffer_ != null) buffer_.flip();
+            check();
+            buffer_.flip();
         }
 
         /**
@@ -263,12 +270,14 @@ public final class ByteBufferPool {
          * @return the buffer
          */
         @Override public final ByteBuffer getByteBuffer() {
+            check();
             return buffer_;
         }
 
         // (non-Javadoc)
         // @see com.tmax.probus.nio.api.IMessageWrapper#getBytes()
         @Override public byte[] getBytes() {
+            check();
             if (buffer_.limit() <= 0) return null;
             buffer_.rewind();
             final byte[] b = new byte[buffer_.limit()];
@@ -279,7 +288,7 @@ public final class ByteBufferPool {
         // (non-Javadoc)
         // @see com.tmax.probus.nio.api.IMessageWrapper#hasRemaining()
         @Override public boolean hasRemaining() {
-            if (buffer_ == null) return false;
+            check();
             return buffer_.hasRemaining();
         }
 
@@ -300,14 +309,15 @@ public final class ByteBufferPool {
         // (non-Javadoc)
         // @see com.tmax.probus.nio.api.IMessageWrapper#remaining()
         @Override public int remaining() {
-            if (buffer_ != null) return buffer_.remaining();
-            return -1;
+            check();
+            return buffer_.remaining();
         }
 
         // (non-Javadoc)
         // @see com.tmax.probus.nio.api.IMessageWrapper#rewind()
         @Override public void rewind() {
-            if (buffer_ != null) buffer_.rewind();
+            check();
+            buffer_.rewind();
         }
 
         @Override public boolean isValid() {

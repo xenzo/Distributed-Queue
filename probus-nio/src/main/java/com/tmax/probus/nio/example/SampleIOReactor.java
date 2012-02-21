@@ -13,36 +13,30 @@
 package com.tmax.probus.nio.example;
 
 
-import java.nio.channels.SelectableChannel;
-import java.nio.channels.SelectionKey;
+import java.io.IOException;
 import java.nio.channels.Selector;
+import java.nio.channels.spi.SelectorProvider;
 
 import com.tmax.probus.nio.reactor.AbstractIoReactor;
 
 
 public class SampleIOReactor extends AbstractIoReactor {
+    Selector ioSelector_;
+
     /**
      * @param strategy
      * @param sampleServer TODO
      */
     public SampleIOReactor() {
+        try {
+            ioSelector_ = SelectorProvider.provider().openSelector();
+        } catch (IOException ex) {
+        }
     }
 
     // (non-Javadoc)
     // @see com.tmax.probus.nio.reactor.AbstractReactor#getSelector()
     @Override protected Selector getSelector() {
-        return null;
-    }
-
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.reactor.AbstractIoReactor#processAccept(java.nio.channels.SelectionKey)
-    @Override protected SelectableChannel processAccept(SelectionKey key) {
-        return null;
-    }
-
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.reactor.AbstractIoReactor#processConnect(java.nio.channels.SelectionKey)
-    @Override protected SelectableChannel processConnect(SelectionKey key) {
-        return null;
+        return ioSelector_;
     }
 }
