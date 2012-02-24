@@ -22,7 +22,6 @@ import java.net.Socket;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.spi.SelectorProvider;
 import java.util.logging.Logger;
@@ -108,11 +107,16 @@ public class Connector extends AbstractIoReactor implements IConnector {
         if (logger.isLoggable(FINER)) logger.exiting("Acceptor", "initSocket(Socket)", "end");
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.reactor.AbstractReactor#createSession(java.nio.channels.ServerSocketChannel, java.nio.channels.SocketChannel)
-    @Override protected ISession createSession(SelectableChannel serverChannel, SocketChannel channel) {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "createSession");
-        // XXX must do something
+    /** {@inheritdoc} */
+    @Override public ISession getSession(SelectableChannel channel) {
+        return null;
+    }
+
+    @Override public void putSession(SelectableChannel channel, ISession session) {
+    }
+
+    /** {@inheritDoc} */
+    @Override public ISession removeSession(SelectableChannel channel) {
         return null;
     }
 }

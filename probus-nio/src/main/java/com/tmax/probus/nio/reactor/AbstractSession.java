@@ -35,57 +35,50 @@ public abstract class AbstractSession implements ISession {
     /** Logger for this class. */
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.nio.reactor");
     /** The write queue_. */
-    private Queue<IMessageWrapper> writeQueue_ = new LinkedBlockingQueue<IMessageWrapper>();
+    private Queue<ByteBuffer> writeQueue_ = new LinkedBlockingQueue<ByteBuffer>();
     /** The read buffer lock_. */
     private final Lock readBufferLock_ = new ReentrantLock(true);
     /** The write queue lock_. */
     private final Lock writeQueueLock_ = new ReentrantLock(true);
     /** The read buffer wrapper_. */
-    private IMessageWrapper readBufferWrapper_;
+    protected IMessageWrapper readBufferWrapper_;
     /** The channel_. */
     private SocketChannel channel_;
 
     /**
      * Instantiates a new abstract session.
      * @param channel the channel
-     * @param strategy the strategy
      * @param readBufferWrapper the read buffer wrapper
-     * @param readBufferSize the read buffer size
      */
     protected AbstractSession(final SocketChannel channel, final IMessageWrapper readBufferWrapper) {
         channel_ = channel;
         readBufferWrapper_ = readBufferWrapper;
-        if (!readBufferWrapper_.isValid()) throw new IllegalArgumentException();
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.api.ISession#acquireBuffer()
+    /** {@inheritDoc} */
     @Override public ByteBuffer acquireReadBuffer() {
         if (!readBufferWrapper_.isValid()) return null;
         readBufferLock_.lock();
         return readBufferWrapper_.getByteBuffer();
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.api.ISession#acquireWriteQueue()
-    @Override public Queue<IMessageWrapper> acquireWriteQueue() {
+    /** {@inheritDoc} */
+    @Override public Queue<ByteBuffer> acquireWriteQueue() {
         if (writeQueue_ == null) return null;
         writeQueueLock_.lock();
         return writeQueue_;
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.api.ISession#addWriteMessage(com.tmax.probus.nio.api.IMessageWrapper)
-    @Override public void addWriteMessage(final IMessageWrapper carrier) {
+    /** {@inheritDoc} */
+    @Override public void addWriteMessage(final ByteBuffer carrier) {
         if (writeQueue_ != null) writeQueue_.offer(carrier);
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.api.ISession#destroy()
+    /** {@inheritDoc} */
     @Override public void destroy() {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "destroy");
         channel_ = null;
-        final Queue<IMessageWrapper> writeQueue = writeQueue_;
+        final Queue<ByteBuffer> writeQueue = writeQueue_;
         writeQueue_ = null;
         writeQueue.clear();
         final IMessageWrapper readBufferWrapper = readBufferWrapper_;
@@ -94,14 +87,12 @@ public abstract class AbstractSession implements ISession {
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "destroy");
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.api.ISession#getChannel()
+    /** {@inheritDoc} */
     @Override public SocketChannel getChannel() {
         return channel_;
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.api.ISession#processMessageRead(java.nio.ByteBuffer)
+    /** {@inheritDoc} */
     @Override public boolean onMessageRead() {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "processMessageRead");
         final Lock lock = readBufferLock_;
@@ -117,61 +108,53 @@ public abstract class AbstractSession implements ISession {
         }
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.api.ISession#processSessionClosed()
+    /** {@inheritDoc} */
     @Override public void onSessionClosed() {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "processSessionClosed");
         // XXX must do something
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "processSessionClosed");
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.api.ISession#onSessionOpened()
+    /** {@inheritDoc} */
     @Override public void onSessionOpened() {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "onSessionOpened");
         // XXX must do something
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "onSessionOpened");
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.api.ISession#processMessageReceived(java.nio.ByteBuffer)
+    /** {@inheritDoc} */
     @Override public void processMessageReceived(final byte[] message) {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "processMessageReceived");
         // XXX must do something
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "processMessageReceived");
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.api.ISession#processMessageSended(java.nio.ByteBuffer)
+    /** {@inheritDoc} */
     @Override public void processMessageSended(final byte[] message) {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "processMessageSended");
         // XXX must do something
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "processMessageSended");
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.api.ISession#releaseBuffer()
+    /** {@inheritDoc} */
     @Override public void releaseReadBuffer() {
         readBufferLock_.unlock();
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.api.ISession#releaseWriteQueue()
+    /** {@inheritDoc} */
     @Override public void releaseWriteQueue() {
         writeQueueLock_.unlock();
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.api.ISession#writeMessage(byte[])
+    /** {@inheritDoc} */
     @Override public void writeMessage(final byte[] msg) {
         writeMessage(msg, 0, msg.length);
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.api.ISession#writeMessage(byte[], int, int)
+    /** {@inheritDoc} */
     @Override public void writeMessage(final byte[] msg, final int offset, final int length) {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "writeMessage");
-        final IMessageWrapper messageWrapper = createWriteMessageWrapper(msg, offset, length);
+        final ByteBuffer messageWrapper = createWriteMessageWrapper(msg, offset, length);
         addWriteMessage(messageWrapper);
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "writeMessage");
     }
@@ -183,10 +166,13 @@ public abstract class AbstractSession implements ISession {
      * @param length the length
      * @return the i byte buffer carrier
      */
-    abstract protected IMessageWrapper createWriteMessageWrapper(byte[] msg, int offset, int length);
+    protected ByteBuffer createWriteMessageWrapper(byte[] msg, int offset, int length) {
+        return ByteBuffer.wrap(msg, offset, length);
+    }
 
     /**
-     * @return
+     * Gets the message reader.
+     * @return the message reader
      */
     abstract protected IMessageReader getMessageReader();
 }

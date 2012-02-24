@@ -16,7 +16,6 @@ package com.tmax.probus.nio.reactor;
 import static java.util.logging.Level.*;
 
 import java.io.IOException;
-import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -34,7 +33,7 @@ import com.tmax.probus.nio.api.IReactor;
  */
 public abstract class AbstractReactor implements IReactor {
     /** The Constant SELECTOR_TIMEOUT(ms). */
-    private static final int SELECTOR_TIMEOUT = 500;
+    private static final int SELECTOR_TIMEOUT = 3000;
     /** Logger for this class. */
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.nio");
     /** The pending jobs_. */
@@ -44,32 +43,27 @@ public abstract class AbstractReactor implements IReactor {
     /** The is running_. */
     private volatile boolean isRunning_;
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.IReactor#addPendingJob(java.lang.Runnable)
+    /** {@inheritDoc} */
     @Override public void addPendingJob(final Runnable runnable) {
         if (logger.isLoggable(FINER)) logger.entering("AbstractReactor", "addPendingJob(Runnable=" + runnable + ")", "start");
         pendingJobs_.add(runnable);
         if (logger.isLoggable(FINER)) logger.exiting("AbstractReactor", "addPendingJob(Runnable)", "end");
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.IReactor#changeOpts(java.nio.channels.SelectableChannel, int)
+    /** {@inheritDoc} */
     @Override public void changeOpts(final SelectableChannel channel, final int opts) {
         if (logger.isLoggable(FINER)) logger.entering("AbstractReactor", "changeOpts(SelectableChannel=" + channel + ", int=" + opts + ")", "start");
         addChangeRequest(new ChangeRequest(ChangeRequestType.CHANGE_OPTS, channel, opts));
         if (logger.isLoggable(FINER)) logger.exiting("AbstractReactor", "changeOpts(SelectableChannel, int)", "end");
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.IReactor#deregister(java.nio.channels.SelectableChannel)
+    /** {@inheritDoc} */
     @Override public void deregister(final SelectableChannel channel) {
         if (logger.isLoggable(FINER)) logger.entering("AbstractReactor", "deregister(SelectableChannel=" + channel + ")", "start");
         addChangeRequest(new ChangeRequest(ChangeRequestType.DEREGISTER, channel, 0));
         if (logger.isLoggable(FINER)) logger.exiting("AbstractReactor", "deregister(SelectableChannel)", "end");
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.IReactor#getIoReactor()
     /**
      * Gets the io reactor.
      * @return the io reactor
@@ -78,22 +72,19 @@ public abstract class AbstractReactor implements IReactor {
         return this;
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.IReactor#register(java.nio.channels.SocketChannel, int)
+    /** {@inheritDoc} */
     @Override public void register(final SelectableChannel channel, final int op) {
         register(channel, op, null);
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.IReactor#register(java.nio.channels.SocketChannel, int, java.lang.Object)
+    /** {@inheritDoc} */
     @Override public void register(final SelectableChannel channel, final int op, final Object attachment) {
         if (logger.isLoggable(FINER)) logger.entering("AbstractReactor", "register(SelectableChannel=" + channel + ", int=" + op + ", Object=" + attachment + ")", "start");
         addChangeRequest(new ChangeRequest(ChangeRequestType.REGISTER, channel, op, attachment));
         if (logger.isLoggable(FINER)) logger.exiting("AbstractReactor", "register(SelectableChannel, int, Object)", "end");
     }
 
-    // (non-Javadoc)
-    // @see java.lang.Runnable#run()
+    /** {@inheritDoc} */
     @Override public void run() {
         if (logger.isLoggable(FINER)) logger.entering("AbstractReactor", "run()", "start");
         init();
@@ -101,8 +92,8 @@ public abstract class AbstractReactor implements IReactor {
         while (isRunning()) {
             if (selector == null) break;
             try {
-                processChangeRequest();
                 processPendingJobs();
+                processChangeRequest();
                 final int nKeys = selector.select(getSelectorTimeout());
                 if (nKeys <= 0) continue;
                 final Iterator<SelectionKey> selectedKeys = selector.selectedKeys().iterator();
@@ -123,8 +114,7 @@ public abstract class AbstractReactor implements IReactor {
         if (logger.isLoggable(FINER)) logger.exiting("AbstractReactor", "run()", "end");
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.IReactor#stop()
+    /** {@inheritDoc} */
     @Override public void stop() {
         if (logger.isLoggable(FINER)) logger.entering("AbstractReactor", "stop()", "start");
         isRunning_ = false;
@@ -132,8 +122,7 @@ public abstract class AbstractReactor implements IReactor {
         if (logger.isLoggable(FINER)) logger.exiting("AbstractReactor", "stop()", "end");
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.IReactor#wakeup()
+    /** {@inheritDoc} */
     @Override public final void wakeup() {
         if (logger.isLoggable(FINER)) logger.entering("AbstractReactor", "wakeup()", "start");
         final Selector selector = getSelector();
@@ -187,7 +176,7 @@ public abstract class AbstractReactor implements IReactor {
      * Handle accept.
      * @param key the key
      * @return true, if successful
-     * @throws IOException
+     * @throws IOException Signals that an I/O exception has occurred.
      */
     protected void handleAccept(final SelectionKey key) throws IOException {
         throw new UnsupportedOperationException();
@@ -197,7 +186,7 @@ public abstract class AbstractReactor implements IReactor {
      * Handle connect.
      * @param key the key
      * @return true, if successful
-     * @throws IOException
+     * @throws IOException Signals that an I/O exception has occurred.
      */
     protected void handleConnect(final SelectionKey key) throws IOException {
         throw new UnsupportedOperationException();
@@ -207,7 +196,7 @@ public abstract class AbstractReactor implements IReactor {
      * Handle read.
      * @param key the key
      * @return true, if successful
-     * @throws IOException
+     * @throws IOException Signals that an I/O exception has occurred.
      */
     protected void handleRead(final SelectionKey key) throws IOException {
         throw new UnsupportedOperationException();
@@ -217,7 +206,7 @@ public abstract class AbstractReactor implements IReactor {
      * Handle write.
      * @param key the key
      * @return true, if successful
-     * @throws IOException
+     * @throws IOException Signals that an I/O exception has occurred.
      */
     protected void handleWrite(final SelectionKey key) throws IOException {
         throw new UnsupportedOperationException();
@@ -241,6 +230,16 @@ public abstract class AbstractReactor implements IReactor {
     }
 
     /**
+     * Process pending jobs.
+     */
+    protected void processPendingJobs() {
+        final Executor executor = getPendingJobExecutor();
+        Runnable runnable = null;
+        while ((runnable = pendingJobs_.poll()) != null)
+            executor.execute(runnable);
+    }
+
+    /**
      * Adds the change request.
      * @param changeRequest the change request
      */
@@ -253,42 +252,34 @@ public abstract class AbstractReactor implements IReactor {
 
     /**
      * Process change request.
-     * @throws ClosedChannelException
+     * @throws IOException Signals that an I/O exception has occurred.
      */
     private final void processChangeRequest() throws IOException {
-        if (logger.isLoggable(FINER)) logger.entering("AbstractReactor", "processChangeRequest()", "start");
         ChangeRequest request = null;
         while ((request = pendingChangeRequest_.poll()) != null) {
             switch (request.type) {
             case CHANGE_OPTS:
                 request.channel.keyFor(getSelector()).interestOps(request.opt);
+                System.out.println(request.opt);
                 break;
             case REGISTER:
                 request.channel.register(getSelector(), request.opt, request.attachment);
                 break;
             case DEREGISTER:
                 final SelectionKey key = request.channel.keyFor(getSelector());
-                key.attach(null);
-                if (key != null) key.cancel();
+                if (key != null) {
+                    key.attach(null);
+                    if (key != null) key.cancel();
+                }
                 break;
             }
         }
-        if (logger.isLoggable(FINER)) logger.exiting("AbstractReactor", "processChangeRequest()", "end");
     }
 
     /**
-     * Process pending jobs.
+     * The Class ChangeRequest.
      */
-    private final void processPendingJobs() {
-        if (logger.isLoggable(FINER)) logger.entering("AbstractReactor", "processPendingJobs()", "start");
-        final Executor executor = getPendingJobExecutor();
-        Runnable runnable = null;
-        while ((runnable = pendingJobs_.poll()) != null)
-            executor.execute(runnable);
-        if (logger.isLoggable(FINER)) logger.exiting("AbstractReactor", "processPendingJobs()", "end");
-    }
-
-    final class ChangeRequest {
+    private final class ChangeRequest {
         /** The type. */
         final ChangeRequestType type;
         /** The channel. */
@@ -303,7 +294,6 @@ public abstract class AbstractReactor implements IReactor {
          * @param type the type
          * @param channel the channel
          * @param opt the opt
-         * @param abstractReactor TODO
          */
         ChangeRequest(final ChangeRequestType type, final SelectableChannel channel, final int opt) {
             this(type, channel, opt, null);
@@ -315,7 +305,6 @@ public abstract class AbstractReactor implements IReactor {
          * @param channel the channel
          * @param opt the op
          * @param attachment the attachment
-         * @param abstractReactor TODO
          */
         ChangeRequest(final ChangeRequestType type, final SelectableChannel channel, final int opt, final Object attachment) {
             this.type = type;
@@ -325,7 +314,10 @@ public abstract class AbstractReactor implements IReactor {
         }
     }
 
-    enum ChangeRequestType {
+    /**
+     * The Enum ChangeRequestType.
+     */
+    private enum ChangeRequestType {
         /** The change opts. */
         CHANGE_OPTS,
         /** The REGISTER. */

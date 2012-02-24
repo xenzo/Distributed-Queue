@@ -44,8 +44,7 @@ public class Acceptor extends AbstractIoReactor implements IAcceptor {
     /** The server socket map_. */
     private Map<SocketAddress, ServerSocketChannel> serverSocketMap_ = new ConcurrentHashMap<SocketAddress, ServerSocketChannel>();
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.IAcceptor#bind(java.net.SocketAddress)
+    /** {@inheritDoc} */
     @Override public void bind(final InetSocketAddress localAddr, final boolean isBlocking) {
         if (logger.isLoggable(FINER)) logger.entering("Acceptor", "bind(SocketAddress=" + localAddr + ", boolean=" + isBlocking + ")", "start");
         ServerSocketChannel server;
@@ -61,8 +60,7 @@ public class Acceptor extends AbstractIoReactor implements IAcceptor {
         if (logger.isLoggable(FINER)) logger.exiting("Acceptor", "bind(SocketAddress, boolean)", "end");
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.IAcceptor#unbind(java.net.SocketAddress)
+    /** {@inheritDoc} */
     @Override public void unbind(final InetSocketAddress localAddr) {
         if (logger.isLoggable(FINER)) logger.entering("Acceptor", "unbind(SocketAddress=" + localAddr + ")", "start");
         final ServerSocketChannel serverSocketChannel = serverSocketMap_.get(localAddr);
@@ -76,8 +74,7 @@ public class Acceptor extends AbstractIoReactor implements IAcceptor {
         if (logger.isLoggable(FINER)) logger.exiting("Acceptor", "unbind(SocketAddress)", "end");
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.IReactor#destroy()
+    /** {@inheritDoc} */
     @Override protected void destroy() {
         super.destroy();
         final Map<SocketAddress, ServerSocketChannel> socketMap = serverSocketMap_;
@@ -85,14 +82,12 @@ public class Acceptor extends AbstractIoReactor implements IAcceptor {
         socketMap.clear();
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.AbstractReactor#getSelector()
+    /** {@inheritDoc} */
     @Override protected Selector getSelector() {
         return acceptSelector_;
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.AbstractReactor#handleAccept(java.nio.channels.SelectionKey)
+    /** {@inheritDoc} */
     @Override protected final SocketChannel processAccept(final SelectionKey key) {
         if (logger.isLoggable(FINER)) logger.entering("Acceptor", "handleAccept(SelectionKey=" + key + ")", "start");
         SocketChannel channel;
@@ -112,14 +107,12 @@ public class Acceptor extends AbstractIoReactor implements IAcceptor {
         return channel;
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.reactor.AbstractIoReactor#processConnect(java.nio.channels.SelectionKey)
+    /** {@inheritDoc} */
     @Override protected SelectableChannel processConnect(SelectionKey key) {
         throw new UnsupportedOperationException();
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.IReactor#init()
+    /** {@inheritDoc} */
     @Override protected void init() {
         if (logger.isLoggable(FINER)) logger.entering("Acceptor", "init()", "start");
         super.init();
@@ -140,11 +133,17 @@ public class Acceptor extends AbstractIoReactor implements IAcceptor {
         if (logger.isLoggable(FINER)) logger.exiting("Acceptor", "initSocket(Socket)", "end");
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.nio.reactor.AbstractReactor#createSession(java.nio.channels.ServerSocketChannel, java.nio.channels.SocketChannel)
-    @Override protected ISession createSession(SelectableChannel serverChannel, SocketChannel channel) {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "createSession");
-        // XXX must do something
+    /** {@inheritDoc} */
+    @Override public ISession getSession(SelectableChannel channel) {
+        return null;
+    }
+
+    /** {@inheritDoc} */
+    @Override public void putSession(final SelectableChannel channel, final ISession session) {
+    }
+
+    /** {@inheritDoc} */
+    @Override public ISession removeSession(final SelectableChannel channel) {
         return null;
     }
 }

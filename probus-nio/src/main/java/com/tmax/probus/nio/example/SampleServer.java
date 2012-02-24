@@ -14,6 +14,7 @@ package com.tmax.probus.nio.example;
 
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.Executor;
@@ -21,9 +22,9 @@ import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 
 import com.tmax.probus.nio.api.IAcceptor;
-import com.tmax.probus.nio.api.IMessageWrapper;
 import com.tmax.probus.nio.api.IReactor;
 import com.tmax.probus.nio.api.ISession;
+import com.tmax.probus.nio.api.ISessionReactor;
 import com.tmax.probus.nio.reactor.Acceptor;
 import com.tmax.probus.nio.util.ByteBufferPool;
 
@@ -37,7 +38,7 @@ public class SampleServer {
      */
     final transient Logger logger = Logger.getLogger("com.tmax.probus.nio.example");
     private IAcceptor acceptor_;
-    private IReactor ioReactor_;
+    private ISessionReactor ioReactor_;
     private Executor executor_ = Executors.newFixedThreadPool(2);
     ByteBufferPool bufferPool_;
 
@@ -46,27 +47,23 @@ public class SampleServer {
      */
     public SampleServer() {
         ioReactor_ = new SampleIOReactor();
-        executor_.execute(ioReactor_);
-        acceptor_ = new SampleAcceptor(ioReactor_);
-        executor_.execute(acceptor_);
+        acceptor_ = new SampleAcceptor();
         try {
             bufferPool_ = ByteBufferPool.newPool(10 * 1024 * 1024, 4 * 1024);
         } catch (IOException ex) {
         }
     }
 
+    public void start() {
+        executor_.execute(ioReactor_);
+        executor_.execute(acceptor_);
+    }
+
+    public void listen(InetSocketAddress addr) {
+        acceptor_.bind(addr, false);
+    }
+
     class SampleAcceptor extends Acceptor {
-        /**  */
-        IReactor ioReactor_;
-
-        /**
-         * @param strategy
-         * @param sampleServer TODO
-         */
-        public SampleAcceptor(IReactor ioReactor) {
-            ioReactor_ = ioReactor;
-        }
-
         // (non-Javadoc)
         // @see com.tmax.probus.nio.reactor.AbstractReactor#getIoReactor()
         @Override public IReactor getIoReactor() {
@@ -75,11 +72,18 @@ public class SampleServer {
 
         // (non-Javadoc)
         // @see com.tmax.probus.nio.reactor.Acceptor#createSession(java.nio.channels.SelectableChannel, java.nio.channels.SocketChannel)
-        @Override protected ISession createSession(SelectableChannel serverChannel, SocketChannel channel) {
-            IMessageWrapper buffer = bufferPool_.getBuffer();
-            buffer.init(4 * 1024);
-            SampleSession session = new SampleSession(channel, buffer);
+        @Override protected ISession createSession(ISessionReactor reactor, SelectableChannel serverChannel, SocketChannel channel) {
+            SampleSession session = new SampleSession(channel, bufferPool_);
+            session.init();
+            ioReactor_.putSession(channel, session);
             return session;
         }
+    }
+
+    public static void main(String... args) {
+        SampleServer server = new SampleServer();
+        server.start();
+        InetSocketAddress addr = new InetSocketAddress(8898);
+        server.listen(addr);
     }
 }

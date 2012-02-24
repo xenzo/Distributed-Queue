@@ -32,13 +32,13 @@ public interface ISession {
      * Acquire write queue.
      * @return the queue
      */
-    Queue<IMessageWrapper> acquireWriteQueue();
+    Queue<ByteBuffer> acquireWriteQueue();
 
     /**
      * Adds the write message.
      * @param carrier the carrier
      */
-    void addWriteMessage(IMessageWrapper carrier);
+    void addWriteMessage(ByteBuffer carrier);
 
     /**
      * Destroy.
@@ -58,13 +58,18 @@ public interface ISession {
     IInterestOptsStrategy getInterestOptsStrategy();
 
     /**
-     *
+     * Inits the.
+     */
+    void init();
+
+    /**
+     * On error occured.
      */
     void onErrorOccured();
 
     /**
      * Process message read.
-     * @return
+     * @return true, if successful
      */
     boolean onMessageRead();
 
