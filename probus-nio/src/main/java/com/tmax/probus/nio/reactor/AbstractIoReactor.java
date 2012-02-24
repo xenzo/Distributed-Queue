@@ -205,8 +205,8 @@ public abstract class AbstractIoReactor extends AbstractReactor implements ISess
      */
     protected boolean processWrite(final SelectionKey key) throws IOException {
         if (logger.isLoggable(FINER)) logger.entering("AbstractIoReactor", "processWrite(SelectionKey=" + key + ")", "start");
-        final ISession session = (ISession) key.attachment();
-        final SocketChannel channel = session.getChannel();
+        SocketChannel channel = (SocketChannel) key.channel();
+        final ISession session = getSession(channel);
         final Queue<ByteBuffer> queue = session.acquireWriteQueue();
         try {
             if (queue == null || queue.isEmpty()) return true;
