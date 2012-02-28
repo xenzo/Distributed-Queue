@@ -15,6 +15,7 @@ package com.tmax.probus.nio.api;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.channels.SelectableChannel;
 import java.nio.channels.SocketChannel;
 
 
@@ -29,12 +30,25 @@ public interface IReactor {
     void bind(InetSocketAddress localAddr);
 
     /**
+     * Change opts.
+     * @param channel the channel
+     * @param opts the opts
+     */
+    void changeOpts(SelectableChannel channel, int opts);
+
+    /**
      * Connect.
      * @param remoteAddr the remote addr
      * @param localAddr the local addr
      * @return the i session
      */
     ISession connect(InetSocketAddress remoteAddr, InetAddress localAddr);
+
+    /**
+     * Deregister.
+     * @param channel the channel
+     */
+    void deregister(SelectableChannel channel);
 
     /**
      * Gets the accept processor.
@@ -67,6 +81,13 @@ public interface IReactor {
      * @param session the session
      */
     void putSession(SocketChannel channel, ISession session);
+
+    /**
+     * Register.
+     * @param channel the channel
+     * @param opts the opts
+     */
+    void register(SelectableChannel channel, int opts);
 
     /**
      * Removes the session.

@@ -331,6 +331,44 @@ public abstract class AbstractReactor implements IReactor {
         return isContinue_;
     }
 
+    @Override public void changeOpts(SelectableChannel channel, int opts) {
+        switch (opts) {
+        case SelectionKey.OP_ACCEPT:
+            getAcceptProcessor().changeOpts(channel, opts);
+            break;
+        case SelectionKey.OP_CONNECT:
+            getConnectProcessor().changeOpts(channel, opts);
+            break;
+        case SelectionKey.OP_READ:
+        case SelectionKey.OP_WRITE:
+            getReadWriteProcessor().changeOpts(channel, opts);
+            break;
+        }
+    }
+
+    @Override public void register(SelectableChannel channel, int opts) {
+        switch (opts) {
+        case SelectionKey.OP_ACCEPT:
+            getAcceptProcessor().register(channel, opts);
+            break;
+        case SelectionKey.OP_CONNECT:
+            getConnectProcessor().register(channel, opts);
+            break;
+        case SelectionKey.OP_READ:
+        case SelectionKey.OP_WRITE:
+            getReadWriteProcessor().register(channel, opts);
+            break;
+        }
+    }
+
+    @Override public void deregister(SelectableChannel channel) {
+        if (channel instanceof ServerSocketChannel) getAcceptProcessor().deregister(channel);
+        else {
+            getReadWriteProcessor().deregister(channel);
+            getConnectProcessor().deregister(channel);
+        }
+    }
+
     /**
      * The Class SelectorProcessor.
      */

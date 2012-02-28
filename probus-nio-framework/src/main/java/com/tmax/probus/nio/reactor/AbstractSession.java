@@ -14,7 +14,6 @@ package com.tmax.probus.nio.reactor;
 
 
 import java.nio.ByteBuffer;
-import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.util.Queue;
@@ -71,22 +70,22 @@ public abstract class AbstractSession implements ISession {
 
     /** {@inheritDoc} */
     @Override public void afterAccept(final IReactor reactor) {
-        reactor.getReadWriteProcessor().register(channel_, SelectionKey.OP_READ);
+        reactor.register(channel_, SelectionKey.OP_READ);
     }
 
     /** {@inheritDoc} */
     @Override public void afterConnect(final IReactor reactor) {
-        reactor.getReadWriteProcessor().register(channel_, SelectionKey.OP_WRITE);
+        reactor.register(channel_, SelectionKey.OP_WRITE);
     }
 
     /** {@inheritDoc} */
     @Override public void afterRead(final IReactor reactor) {
-        reactor.getReadWriteProcessor().changeOpts(channel_, SelectionKey.OP_WRITE);
+        reactor.changeOpts(channel_, SelectionKey.OP_WRITE);
     }
 
     /** {@inheritDoc} */
     @Override public void afterWrite(final IReactor reactor) {
-        reactor.getReadWriteProcessor().changeOpts(channel_, SelectionKey.OP_READ);
+        reactor.changeOpts(channel_, SelectionKey.OP_READ);
     }
 
     /** {@inheritDoc} */
@@ -123,7 +122,7 @@ public abstract class AbstractSession implements ISession {
 
     /** {@inheritDoc} */
     @Override public void write(final byte[] msg, final int offset, final int length) {
-        final ByteBuffer buffer = ByteBuffer.wrap(msg, offset, length);
+        final ByteBuffer buffer = createWriteByteBuffer(msg, offset, length);
         final Queue<ByteBuffer> writeQueue = acquireWriteQueue();
         try {
             writeQueue.add(buffer);
@@ -132,6 +131,17 @@ public abstract class AbstractSession implements ISession {
         } finally {
             releaseWriteQueue();
         }
+    }
+
+    /**
+     * Creates the write byte buffer.
+     * @param msg the msg
+     * @param offset the offset
+     * @param length the length
+     * @return the byte buffer
+     */
+    protected ByteBuffer createWriteByteBuffer(final byte[] msg, final int offset, final int length) {
+        return ByteBuffer.wrap(msg, offset, length);
     }
 
     /**
