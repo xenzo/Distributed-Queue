@@ -16,6 +16,7 @@ package com.tmax.probus.nio.reactor;
 import static java.util.logging.Level.*;
 
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -26,6 +27,7 @@ import java.util.logging.Logger;
 import com.tmax.probus.nio.api.IMessageReader;
 import com.tmax.probus.nio.api.IMessageWrapper;
 import com.tmax.probus.nio.api.ISession;
+import com.tmax.probus.nio.api.ISessionReactor;
 
 
 /**
@@ -44,13 +46,15 @@ public abstract class AbstractSession implements ISession {
     protected IMessageWrapper readBufferWrapper_;
     /** The channel_. */
     private SocketChannel channel_;
+    private ISessionReactor reactor_;
 
     /**
      * Instantiates a new abstract session.
      * @param channel the channel
      * @param readBufferWrapper the read buffer wrapper
      */
-    protected AbstractSession(final SocketChannel channel, final IMessageWrapper readBufferWrapper) {
+    protected AbstractSession(ISessionReactor reactor, final SocketChannel channel, final IMessageWrapper readBufferWrapper) {
+        reactor_ = reactor;
         channel_ = channel;
         readBufferWrapper_ = readBufferWrapper;
     }
@@ -156,6 +160,8 @@ public abstract class AbstractSession implements ISession {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "writeMessage");
         final ByteBuffer messageWrapper = createWriteMessageWrapper(msg, offset, length);
         addWriteMessage(messageWrapper);
+        reactor_.changeOpts(channel_, SelectionKey.OP_WRITE);
+        reactor_.wakeup();
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "writeMessage");
     }
 

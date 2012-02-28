@@ -57,7 +57,7 @@ public class SampleIOReactor extends AbstractIoReactor {
 
     /** {@inheritDoc} */
     @Override protected ISession createSession(ISessionReactor iReactor, SelectableChannel serverChannel, SocketChannel channel) {
-        ISession session = new SampleSession(channel, null);
+        ISession session = new SampleSession(iReactor, channel, null);
         putSession(channel, session);
         return session;
     }

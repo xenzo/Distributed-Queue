@@ -28,6 +28,46 @@ public interface ISession {
     ByteBuffer acquireReadBuffer();
 
     /**
+     * Acquire write queue.
+     * @return the queue
+     */
+    Queue<ByteBuffer> acquireWriteQueue();
+
+    /**
+     * After accept.
+     * @param reactor the reactor
+     */
+    void afterAccept(IReactor reactor);
+
+    /**
+     * After connect.
+     * @param reactor the reactor
+     */
+    void afterConnect(IReactor reactor);
+
+    /**
+     * After read.
+     * @param reactor the reactor
+     */
+    void afterRead(IReactor reactor);
+
+    /**
+     * After write.
+     * @param reactor the reactor
+     */
+    void afterWrite(IReactor reactor);
+
+    /**
+     * Destroy.
+     */
+    void destroy();
+
+    /**
+     * Inits the.
+     */
+    void init();
+
+    /**
      * On message read.
      * @return true, if on message read
      */
@@ -39,13 +79,27 @@ public interface ISession {
     void releaseReadBuffer();
 
     /**
-     *
+     * Release write queue.
      */
     void releaseWriteQueue();
 
     /**
-     *
-     * @return
+     * Sets the message reader.
+     * @param reader the new message reader
      */
-    Queue<ByteBuffer> acquireWriteQueue();
+    void setMessageReader(IMessageReader reader);
+
+    /**
+     * Write.
+     * @param msg the msg
+     */
+    void write(byte[] msg);
+
+    /**
+     * Write.
+     * @param msg the msg
+     * @param offset the offset
+     * @param length the length
+     */
+    void write(byte[] msg, int offset, int length);
 }

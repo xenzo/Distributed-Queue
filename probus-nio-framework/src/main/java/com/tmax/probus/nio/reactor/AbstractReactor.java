@@ -61,15 +61,18 @@ public abstract class AbstractReactor implements IReactor {
 
     /** {@inheritDoc} */
     @Override public void bind(final InetSocketAddress localAddr) {
-        ServerSocketChannel server;
+        if (logger.isLoggable(FINER)) logger.entering("AbstractReactor", "bind(InetSocketAddress=" + localAddr + ")", "start");
+        ServerSocketChannel server = null;
         try {
             server = ServerSocketChannel.open();
             server.configureBlocking(false);
             server.socket().bind(localAddr);
-            getAcceptProcessor().register(server, SelectionKey.OP_ACCEPT, null);
+            getAcceptProcessor().register(server, SelectionKey.OP_ACCEPT);
             serverSocketMap_.put(localAddr, server);
         } catch (final IOException ex) {
+            logger.logp(WARNING, "AbstractReactor", "bind(InetSocketAddress)", "exception ignored", ex);
         }
+        if (logger.isLoggable(FINER)) logger.exiting("AbstractReactor", "bind(InetSocketAddress)", "end");
     }
 
     /** {@inheritDoc} */
@@ -84,27 +87,19 @@ public abstract class AbstractReactor implements IReactor {
             channel.connect(remoteAddr);
             session = createSession(null, channel);
             putSession(channel, session);
-            getConnectProcessor().register(channel, SelectionKey.OP_CONNECT, null);
+            getConnectProcessor().register(channel, SelectionKey.OP_CONNECT);
         } catch (final IOException ex) {
             logger.log(WARNING, "" + ex.getMessage(), ex);
         }
         return session;
     }
 
-    /**
-     * Gets the session.
-     * @param channel the channel
-     * @return the session
-     */
+    /** {@inheritDoc} */
     @Override public ISession getSession(final SocketChannel channel) {
         return channelSessionMap_.get(channel);
     }
 
-    /**
-     * Put session.
-     * @param channel the channel
-     * @param session the session
-     */
+    /** {@inheritDoc} */
     @Override public void putSession(final SocketChannel channel, final ISession session) {
         channelSessionMap_.put(channel, session);
     }
@@ -117,14 +112,9 @@ public abstract class AbstractReactor implements IReactor {
     /** {@inheritDoc} */
     @Override public void start() {
         isContinue_ = true;
-        ISelectorProcessor processor = getAcceptProcessor();
-        if (!processor.isRunning()) processor.start();
-        processor = getConnectProcessor();
-        if (!processor.isRunning()) processor.start();
-        processor = getReadProcessor();
-        if (!processor.isRunning()) processor.start();
-        processor = getWriteProcessor();
-        if (!processor.isRunning()) processor.start();
+        for (final ISelectorProcessor processor : processorSet_) {
+            if (!processor.isRunning()) processor.start();
+        }
     }
 
     /** {@inheritDoc} */
@@ -157,7 +147,8 @@ public abstract class AbstractReactor implements IReactor {
      * @param channel the channel
      */
     protected void afterAccept(final SocketChannel channel) {
-        getReadProcessor().register(channel, SelectionKey.OP_READ, null);
+        ISession session = getSession(channel);
+        session.afterAccept(this);
     }
 
     /**
@@ -165,7 +156,8 @@ public abstract class AbstractReactor implements IReactor {
      * @param channel the channel
      */
     protected void afterConnect(final SocketChannel channel) {
-        getWriteProcessor().register(channel, SelectionKey.OP_WRITE, null);
+        ISession session = getSession(channel);
+        session.afterConnect(this);
     }
 
     /**
@@ -173,7 +165,8 @@ public abstract class AbstractReactor implements IReactor {
      * @param channel the channel
      */
     protected void afterRead(final SocketChannel channel) {
-        getWriteProcessor().register(channel, SelectionKey.OP_WRITE, null);
+        ISession session = getSession(channel);
+        session.afterRead(this);
     }
 
     /**
@@ -181,15 +174,17 @@ public abstract class AbstractReactor implements IReactor {
      * @param channel the channel
      */
     protected void afterWrite(final SocketChannel channel) {
-        getReadProcessor().register(channel, SelectionKey.OP_READ, null);
+        ISession session = getSession(channel);
+        session.afterWrite(this);
     }
 
     /**
      * Creates the selector processor.
+     * @param name the name
      * @return the i selector processor
      */
-    protected ISelectorProcessor createSelectorProcessor() {
-        final ISelectorProcessor processor = new SelectorProcessor();
+    protected ISelectorProcessor createSelectorProcessor(final String name) {
+        final ISelectorProcessor processor = new SelectorProcessor(name);
         processorSet_.add(processor);
         return processor;
     }
@@ -201,30 +196,6 @@ public abstract class AbstractReactor implements IReactor {
      * @return the i session
      */
     abstract protected ISession createSession(final SelectableChannel serverChannel, final SocketChannel channel);
-
-    /**
-     * Gets the accept processor.
-     * @return the accept processor
-     */
-    abstract protected ISelectorProcessor getAcceptProcessor();
-
-    /**
-     * Gets the connect processor.
-     * @return the connect processor
-     */
-    abstract protected ISelectorProcessor getConnectProcessor();
-
-    /**
-     * Gets the read processor.
-     * @return the read processor
-     */
-    abstract protected ISelectorProcessor getReadProcessor();
-
-    /**
-     * Gets the write processor.
-     * @return the write processor
-     */
-    abstract protected ISelectorProcessor getWriteProcessor();
 
     /**
      * Inits the socket.
@@ -252,6 +223,14 @@ public abstract class AbstractReactor implements IReactor {
             session.releaseReadBuffer();
         }
         return session.onMessageRead();
+    }
+
+    /**
+     * Sets the selector timeout.
+     * @param timeout the new selector timeout
+     */
+    protected final void setSelectorTimeout(final long timeout) {
+        timeOut_ = timeout;
     }
 
     /**
@@ -363,14 +342,22 @@ public abstract class AbstractReactor implements IReactor {
         /** The status_. */
         Status status_ = Status.STOPPED;
 
+        /**
+         * Instantiates a new selector processor.
+         * @param name the name
+         */
+        public SelectorProcessor(final String name) {
+            super(name);
+        }
+
         /** {@inheritDoc} */
         @Override public void changeOpts(final SelectableChannel channel, final int opts) {
-            addChangeRequest(new ChangeRequest(ChangeType.CHANGE_OPTS, channel, opts, null));
+            addChangeRequest(new ChangeRequest(ChangeType.CHANGE_OPTS, channel, opts));
         }
 
         /** {@inheritDoc} */
         @Override public void deregister(final SelectableChannel channel) {
-            addChangeRequest(new ChangeRequest(ChangeType.DEREGISTER, channel, -1, null));
+            addChangeRequest(new ChangeRequest(ChangeType.DEREGISTER, channel, -1));
         }
 
         /** {@inheritDoc} */
@@ -379,8 +366,8 @@ public abstract class AbstractReactor implements IReactor {
         }
 
         /** {@inheritDoc} */
-        @Override public void register(final SelectableChannel channel, final int opts, final Object attachment) {
-            addChangeRequest(new ChangeRequest(ChangeType.REGISTER, channel, opts, attachment));
+        @Override public void register(final SelectableChannel channel, final int opts) {
+            addChangeRequest(new ChangeRequest(ChangeType.REGISTER, channel, opts));
         }
 
         /** {@inheritDoc} */
@@ -458,7 +445,7 @@ public abstract class AbstractReactor implements IReactor {
                     break;
                 case REGISTER:
                     try {
-                        request.channel.register(selector_, request.opts, request.attachment);
+                        request.channel.register(selector_, request.opts);
                     } catch (final ClosedChannelException ex) {
                         logger.log(WARNING, "" + ex.getMessage(), ex);
                     }
@@ -504,16 +491,6 @@ public abstract class AbstractReactor implements IReactor {
     }
 
     /**
-     * The Enum Status.
-     */
-    enum Status {
-        /** The STARTED. */
-        STARTED,
-        /** The STOPPED. */
-        STOPPED;
-    }
-
-    /**
      * The Class ChangeRequest.
      */
     private class ChangeRequest {
@@ -523,8 +500,6 @@ public abstract class AbstractReactor implements IReactor {
         private final SelectableChannel channel;
         /** The opts_. */
         private final int opts;
-        /** The attachment_. */
-        private final Object attachment;
 
         /**
          * The Constructor.
@@ -533,11 +508,10 @@ public abstract class AbstractReactor implements IReactor {
          * @param opts the opts
          * @param attachment the attachment
          */
-        private ChangeRequest(final ChangeType type, final SelectableChannel channel, final int opts, final Object attachment) {
+        private ChangeRequest(final ChangeType type, final SelectableChannel channel, final int opts) {
             this.type = type;
             this.channel = channel;
             this.opts = opts;
-            this.attachment = attachment;
         }
     }
 
@@ -551,5 +525,15 @@ public abstract class AbstractReactor implements IReactor {
         DEREGISTER,
         /** The CHANG e_ opts. */
         CHANGE_OPTS;
+    }
+
+    /**
+     * The Enum Status.
+     */
+    private enum Status {
+        /** The STARTED. */
+        STARTED,
+        /** The STOPPED. */
+        STOPPED;
     }
 }

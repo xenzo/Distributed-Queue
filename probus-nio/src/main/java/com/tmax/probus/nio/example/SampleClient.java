@@ -79,7 +79,7 @@ public class SampleClient {
 
         /** {@inheritDoc} */
         @Override protected ISession createSession(ISessionReactor iReactor, SelectableChannel serverChannel, SocketChannel channel) {
-            SampleSession session = new SampleSession(channel, bufferPool_);
+            SampleSession session = new SampleSession(iReactor, channel, bufferPool_);
             session.init();
             ioReactor_.putSession(channel, session);
             return session;

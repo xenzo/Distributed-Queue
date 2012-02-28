@@ -8,7 +8,6 @@
         <version>LATEST</version>
     </parent>
 
-    <groupId>com.tmax.probus</groupId>
     <artifactId>probus-nio-framework</artifactId>
     <version>5.0.1-r0001</version>
 

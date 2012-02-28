@@ -21,6 +21,7 @@ import com.tmax.probus.nio.api.IInterestOptsStrategy;
 import com.tmax.probus.nio.api.IMessageReader;
 import com.tmax.probus.nio.api.IMessageWrapper;
 import com.tmax.probus.nio.api.IReactor;
+import com.tmax.probus.nio.api.ISessionReactor;
 import com.tmax.probus.nio.reactor.AbstractMessageReader;
 import com.tmax.probus.nio.reactor.AbstractSession;
 import com.tmax.probus.nio.util.ByteBufferPool;
@@ -42,8 +43,8 @@ class SampleSession extends AbstractSession {
      * @param channel the channel
      * @param bufferPool the buffer pool
      */
-    public SampleSession(final SocketChannel channel, final ByteBufferPool bufferPool) {
-        this(channel, bufferPool, bufferPool.getBuffer());
+    public SampleSession(ISessionReactor reactor, final SocketChannel channel, final ByteBufferPool bufferPool) {
+        this(reactor, channel, bufferPool, bufferPool.getBuffer());
     }
 
     /**
@@ -52,8 +53,8 @@ class SampleSession extends AbstractSession {
      * @param bufferPool the buffer pool
      * @param readBufferWrapper the read buffer wrapper
      */
-    protected SampleSession(final SocketChannel channel, final ByteBufferPool bufferPool, final IMessageWrapper readBufferWrapper) {
-        super(channel, readBufferWrapper);
+    protected SampleSession(ISessionReactor reactor, final SocketChannel channel, final ByteBufferPool bufferPool, final IMessageWrapper readBufferWrapper) {
+        super(reactor, channel, readBufferWrapper);
         bufferPool_ = bufferPool;
         strategy_ = new SampleOptsStrategy();
         messageReader_ = new SampleMessageReader();

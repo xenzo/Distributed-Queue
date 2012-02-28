@@ -45,7 +45,7 @@ public interface ISelectorProcessor {
      * @param opts the opts
      * @param attachment the attachment
      */
-    void register(final SelectableChannel channel, final int opts, final Object attachment);
+    void register(final SelectableChannel channel, final int opts);
 
     /**
      * Wakeup.

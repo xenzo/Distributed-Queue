@@ -220,11 +220,12 @@ public abstract class AbstractIoReactor extends AbstractReactor implements ISess
                 if (msg.hasRemaining()) return false;
                 queue.remove();
                 session.processMessageSended(msg.array());
+                return true;
             }
         } finally {
             session.releaseWriteQueue();
         }
         if (logger.isLoggable(FINER)) logger.exiting("AbstractIoReactor", "processWrite(SelectionKey)", "end - return value=" + true);
-        return true;
+        return false;
     }
 }

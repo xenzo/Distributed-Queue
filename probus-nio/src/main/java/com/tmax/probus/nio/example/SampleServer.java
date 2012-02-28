@@ -73,7 +73,7 @@ public class SampleServer {
         // (non-Javadoc)
         // @see com.tmax.probus.nio.reactor.Acceptor#createSession(java.nio.channels.SelectableChannel, java.nio.channels.SocketChannel)
         @Override protected ISession createSession(ISessionReactor reactor, SelectableChannel serverChannel, SocketChannel channel) {
-            SampleSession session = new SampleSession(channel, bufferPool_);
+            SampleSession session = new SampleSession(reactor, channel, bufferPool_);
             session.init();
             ioReactor_.putSession(channel, session);
             return session;

@@ -37,6 +37,24 @@ public interface IReactor {
     ISession connect(InetSocketAddress remoteAddr, InetAddress localAddr);
 
     /**
+     * Gets the accept processor.
+     * @return the accept processor
+     */
+    ISelectorProcessor getAcceptProcessor();
+
+    /**
+     * Gets the connect processor.
+     * @return the connect processor
+     */
+    ISelectorProcessor getConnectProcessor();
+
+    /**
+     * Gets the read processor.
+     * @return the read processor
+     */
+    ISelectorProcessor getReadWriteProcessor();
+
+    /**
      * Gets the session.
      * @param channel the channel
      * @return the session
