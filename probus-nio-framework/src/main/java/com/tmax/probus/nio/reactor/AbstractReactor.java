@@ -60,38 +60,28 @@ public abstract class AbstractReactor implements IReactor {
     private Set<ISelectorProcessor> processorSet_ = new HashSet<ISelectorProcessor>();
 
     /** {@inheritDoc} */
-    @Override public void bind(final InetSocketAddress localAddr) {
-        if (logger.isLoggable(FINER)) logger.entering("AbstractReactor", "bind(InetSocketAddress=" + localAddr + ")", "start");
-        ServerSocketChannel server = null;
-        try {
-            server = ServerSocketChannel.open();
-            server.configureBlocking(false);
-            server.socket().bind(localAddr);
-            getAcceptProcessor().register(server, SelectionKey.OP_ACCEPT);
-            serverSocketMap_.put(localAddr, server);
-        } catch (final IOException ex) {
-            logger.logp(WARNING, "AbstractReactor", "bind(InetSocketAddress)", "exception ignored", ex);
+    @Override public void changeOpts(final SelectableChannel channel, final int opts) {
+        switch (opts) {
+        case SelectionKey.OP_ACCEPT:
+            getAcceptProcessor().changeOpts(channel, opts);
+            break;
+        case SelectionKey.OP_CONNECT:
+            getConnectProcessor().changeOpts(channel, opts);
+            break;
+        case SelectionKey.OP_READ:
+        case SelectionKey.OP_WRITE:
+            getReadWriteProcessor().changeOpts(channel, opts);
+            break;
         }
-        if (logger.isLoggable(FINER)) logger.exiting("AbstractReactor", "bind(InetSocketAddress)", "end");
     }
 
     /** {@inheritDoc} */
-    @Override public ISession connect(final InetSocketAddress remoteAddr, final InetAddress localAddr) {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "connect");
-        SocketChannel channel = null;
-        ISession session = null;
-        try {
-            channel = SocketChannel.open();
-            channel.configureBlocking(false);
-            if (localAddr != null) channel.socket().bind(new InetSocketAddress(localAddr, 0));
-            channel.connect(remoteAddr);
-            session = createSession(null, channel);
-            putSession(channel, session);
-            getConnectProcessor().register(channel, SelectionKey.OP_CONNECT);
-        } catch (final IOException ex) {
-            logger.log(WARNING, "" + ex.getMessage(), ex);
+    @Override public void deregister(final SelectableChannel channel) {
+        if (channel instanceof ServerSocketChannel) getAcceptProcessor().deregister(channel);
+        else {
+            getReadWriteProcessor().deregister(channel);
+            getConnectProcessor().deregister(channel);
         }
-        return session;
     }
 
     /** {@inheritDoc} */
@@ -105,12 +95,44 @@ public abstract class AbstractReactor implements IReactor {
     }
 
     /** {@inheritDoc} */
+    @Override public void register(final SelectableChannel channel, final int opts) {
+        switch (opts) {
+        case SelectionKey.OP_ACCEPT:
+            getAcceptProcessor().register(channel, opts);
+            break;
+        case SelectionKey.OP_CONNECT:
+            getConnectProcessor().register(channel, opts);
+            break;
+        case SelectionKey.OP_READ:
+        case SelectionKey.OP_WRITE:
+            getReadWriteProcessor().register(channel, opts);
+            break;
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override public void removeOpts(final SelectableChannel channel, final int opts) {
+        switch (opts) {
+        case SelectionKey.OP_ACCEPT:
+            getAcceptProcessor().removeOpts(channel, opts);
+            break;
+        case SelectionKey.OP_CONNECT:
+            getConnectProcessor().changeOpts(channel, opts);
+            break;
+        case SelectionKey.OP_READ:
+        case SelectionKey.OP_WRITE:
+            getReadWriteProcessor().changeOpts(channel, opts);
+            break;
+        }
+    }
+
+    /** {@inheritDoc} */
     @Override public ISession removeSession(final SocketChannel channel) {
         return channelSessionMap_.remove(channel);
     }
 
     /** {@inheritDoc} */
-    @Override public void start() {
+    @Override public void init() {
         isContinue_ = true;
         for (final ISelectorProcessor processor : processorSet_) {
             if (!processor.isRunning()) processor.start();
@@ -118,7 +140,7 @@ public abstract class AbstractReactor implements IReactor {
     }
 
     /** {@inheritDoc} */
-    @Override public void stop() {
+    @Override public void destroy() {
         isContinue_ = false;
         final Map<SelectableChannel, ISession> channelSessionMap = channelSessionMap_;
         channelSessionMap_ = null;
@@ -131,23 +153,12 @@ public abstract class AbstractReactor implements IReactor {
         processorSet.clear();
     }
 
-    /** {@inheritDoc} */
-    @Override public void unbind(final InetSocketAddress localAddr) {
-        final ServerSocketChannel serverChannel = serverSocketMap_.get(localAddr);
-        try {
-            serverChannel.socket().close();
-            serverChannel.close();
-            getAcceptProcessor().deregister(serverChannel);
-        } catch (final IOException ex) {
-        }
-    }
-
     /**
      * After accept.
      * @param channel the channel
      */
     protected void afterAccept(final SocketChannel channel) {
-        ISession session = getSession(channel);
+        final ISession session = getSession(channel);
         session.afterAccept(this);
     }
 
@@ -156,7 +167,7 @@ public abstract class AbstractReactor implements IReactor {
      * @param channel the channel
      */
     protected void afterConnect(final SocketChannel channel) {
-        ISession session = getSession(channel);
+        final ISession session = getSession(channel);
         session.afterConnect(this);
     }
 
@@ -165,7 +176,7 @@ public abstract class AbstractReactor implements IReactor {
      * @param channel the channel
      */
     protected void afterRead(final SocketChannel channel) {
-        ISession session = getSession(channel);
+        final ISession session = getSession(channel);
         session.afterRead(this);
     }
 
@@ -174,8 +185,64 @@ public abstract class AbstractReactor implements IReactor {
      * @param channel the channel
      */
     protected void afterWrite(final SocketChannel channel) {
-        ISession session = getSession(channel);
+        final ISession session = getSession(channel);
         session.afterWrite(this);
+    }
+
+    /**
+     * Bind.
+     * @param localAddr the local addr
+     * @return
+     * @throws IOException Signals that an I/O exception has occurred.
+     */
+    protected ServerSocketChannel bind(final InetSocketAddress localAddr) throws IOException {
+        if (logger.isLoggable(FINER)) logger.entering("AbstractReactor", "bind(InetSocketAddress=" + localAddr + ")", "start");
+        ServerSocketChannel server = null;
+        server = ServerSocketChannel.open();
+        server.configureBlocking(false);
+        server.socket().bind(localAddr);
+        getAcceptProcessor().register(server, SelectionKey.OP_ACCEPT);
+        if (logger.isLoggable(FINER)) logger.exiting("AbstractReactor", "bind(InetSocketAddress)", "end");
+        return server;
+    }
+
+    /**
+     * Close channel.
+     * @param channel the channel
+     * @throws IOException Signals that an I/O exception has occurred.
+     */
+    protected final void closeChannel(final SelectableChannel channel) throws IOException {
+        if (channel instanceof ServerSocketChannel) {
+            final ServerSocketChannel c = (ServerSocketChannel) channel;
+            c.socket().close();
+            c.close();
+        } else if (channel instanceof SocketChannel) {
+            final SocketChannel c = (SocketChannel) channel;
+            c.socket().close();
+            c.close();
+        }
+    }
+
+    /**
+     * Connect.
+     * @param remoteAddr the remote addr
+     * @param localAddr the local addr
+     * @return the i session
+     * @throws IOException Signals that an I/O exception has occurred.
+     */
+    protected ISession connect(final InetSocketAddress remoteAddr, final InetAddress localAddr)
+            throws IOException {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "connect");
+        SocketChannel channel = null;
+        ISession session = null;
+        channel = SocketChannel.open();
+        channel.configureBlocking(false);
+        if (localAddr != null) channel.socket().bind(new InetSocketAddress(localAddr, 0));
+        channel.connect(remoteAddr);
+        session = createSession(null, channel);
+        putSession(channel, session);
+        getConnectProcessor().register(channel, SelectionKey.OP_CONNECT);
+        return session;
     }
 
     /**
@@ -331,44 +398,6 @@ public abstract class AbstractReactor implements IReactor {
         return isContinue_;
     }
 
-    @Override public void changeOpts(SelectableChannel channel, int opts) {
-        switch (opts) {
-        case SelectionKey.OP_ACCEPT:
-            getAcceptProcessor().changeOpts(channel, opts);
-            break;
-        case SelectionKey.OP_CONNECT:
-            getConnectProcessor().changeOpts(channel, opts);
-            break;
-        case SelectionKey.OP_READ:
-        case SelectionKey.OP_WRITE:
-            getReadWriteProcessor().changeOpts(channel, opts);
-            break;
-        }
-    }
-
-    @Override public void register(SelectableChannel channel, int opts) {
-        switch (opts) {
-        case SelectionKey.OP_ACCEPT:
-            getAcceptProcessor().register(channel, opts);
-            break;
-        case SelectionKey.OP_CONNECT:
-            getConnectProcessor().register(channel, opts);
-            break;
-        case SelectionKey.OP_READ:
-        case SelectionKey.OP_WRITE:
-            getReadWriteProcessor().register(channel, opts);
-            break;
-        }
-    }
-
-    @Override public void deregister(SelectableChannel channel) {
-        if (channel instanceof ServerSocketChannel) getAcceptProcessor().deregister(channel);
-        else {
-            getReadWriteProcessor().deregister(channel);
-            getConnectProcessor().deregister(channel);
-        }
-    }
-
     /**
      * The Class SelectorProcessor.
      */
@@ -406,6 +435,11 @@ public abstract class AbstractReactor implements IReactor {
         /** {@inheritDoc} */
         @Override public void register(final SelectableChannel channel, final int opts) {
             addChangeRequest(new ChangeRequest(ChangeType.REGISTER, channel, opts));
+        }
+
+        /** {@inheritDoc} */
+        @Override public void removeOpts(final SelectableChannel channel, final int opts) {
+            addChangeRequest(new ChangeRequest(ChangeType.REMOVE_OPTS, channel, opts));
         }
 
         /** {@inheritDoc} */
@@ -474,6 +508,9 @@ public abstract class AbstractReactor implements IReactor {
                 switch (request.type) {
                 case CHANGE_OPTS:
                     if (key != null) key.interestOps(request.opts);
+                    break;
+                case REMOVE_OPTS:
+                    if (key != null) key.interestOps(key.interestOps() ^ request.opts);
                     break;
                 case DEREGISTER:
                     if (key != null) {
@@ -544,7 +581,6 @@ public abstract class AbstractReactor implements IReactor {
          * @param type the type
          * @param channel the channel
          * @param opts the opts
-         * @param attachment the attachment
          */
         private ChangeRequest(final ChangeType type, final SelectableChannel channel, final int opts) {
             this.type = type;
@@ -562,7 +598,9 @@ public abstract class AbstractReactor implements IReactor {
         /** The DEREGISTER. */
         DEREGISTER,
         /** The CHANG e_ opts. */
-        CHANGE_OPTS;
+        CHANGE_OPTS,
+        /** The REMOV e_ opts. */
+        REMOVE_OPTS;
     }
 
     /**

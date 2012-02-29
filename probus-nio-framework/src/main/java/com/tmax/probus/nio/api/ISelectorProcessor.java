@@ -43,17 +43,23 @@ public interface ISelectorProcessor {
      * Register.
      * @param channel the channel
      * @param opts the opts
-     * @param attachment the attachment
      */
     void register(final SelectableChannel channel, final int opts);
+
+    /**
+     * Removes the opts.
+     * @param channel the channel
+     * @param opts the opts
+     */
+    void removeOpts(SelectableChannel channel, int opts);
+
+    /**
+     * Start.
+     */
+    void start();
 
     /**
      * Wakeup.
      */
     void wakeup();
-
-    /**
-     *
-     */
-    void start();
 }
