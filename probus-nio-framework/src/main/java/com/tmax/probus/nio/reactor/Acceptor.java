@@ -56,6 +56,14 @@ public class Acceptor extends AbstractReactor implements IAcceptor {
     }
 
     /** {@inheritDoc} */
+    @Override public void destroy() {
+        super.destroy();
+        Map<InetSocketAddress, ServerSocketChannel> map = serverSocketChannelMap_;
+        serverSocketChannelMap_ = null;
+        map.clear();
+    }
+
+    /** {@inheritDoc} */
     @Override public void closeServer(final InetSocketAddress localAddr) {
         ServerSocketChannel serverSocketChannel = serverSocketChannelMap_.remove(localAddr);
         try {

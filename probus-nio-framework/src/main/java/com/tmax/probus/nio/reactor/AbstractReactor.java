@@ -54,8 +54,6 @@ public abstract class AbstractReactor implements IReactor {
     private volatile boolean isContinue_ = false;
     /** The channel session map_. */
     private Map<SelectableChannel, ISession> channelSessionMap_ = new ConcurrentHashMap<SelectableChannel, ISession>();
-    /** The server socket map_. */
-    private Map<InetSocketAddress, ServerSocketChannel> serverSocketMap_;
     /** The processor set_. */
     private Set<ISelectorProcessor> processorSet_ = new HashSet<ISelectorProcessor>();
 
@@ -85,8 +83,27 @@ public abstract class AbstractReactor implements IReactor {
     }
 
     /** {@inheritDoc} */
+    @Override public void destroy() {
+        isContinue_ = false;
+        final Map<SelectableChannel, ISession> channelSessionMap = channelSessionMap_;
+        channelSessionMap_ = null;
+        channelSessionMap.clear();
+        final Set<ISelectorProcessor> processorSet = processorSet_;
+        processorSet_ = null;
+        processorSet.clear();
+    }
+
+    /** {@inheritDoc} */
     @Override public ISession getSession(final SocketChannel channel) {
         return channelSessionMap_.get(channel);
+    }
+
+    /** {@inheritDoc} */
+    @Override public void init() {
+        isContinue_ = true;
+        for (final ISelectorProcessor processor : processorSet_) {
+            if (!processor.isRunning()) processor.start();
+        }
     }
 
     /** {@inheritDoc} */
@@ -131,28 +148,6 @@ public abstract class AbstractReactor implements IReactor {
         return channelSessionMap_.remove(channel);
     }
 
-    /** {@inheritDoc} */
-    @Override public void init() {
-        isContinue_ = true;
-        for (final ISelectorProcessor processor : processorSet_) {
-            if (!processor.isRunning()) processor.start();
-        }
-    }
-
-    /** {@inheritDoc} */
-    @Override public void destroy() {
-        isContinue_ = false;
-        final Map<SelectableChannel, ISession> channelSessionMap = channelSessionMap_;
-        channelSessionMap_ = null;
-        channelSessionMap.clear();
-        final Map<InetSocketAddress, ServerSocketChannel> serverSocketMap = serverSocketMap_;
-        serverSocketMap_ = null;
-        serverSocketMap.clear();
-        final Set<ISelectorProcessor> processorSet = processorSet_;
-        processorSet_ = null;
-        processorSet.clear();
-    }
-
     /**
      * After accept.
      * @param channel the channel
@@ -192,7 +187,7 @@ public abstract class AbstractReactor implements IReactor {
     /**
      * Bind.
      * @param localAddr the local addr
-     * @return
+     * @return the server socket channel
      * @throws IOException Signals that an I/O exception has occurred.
      */
     protected ServerSocketChannel bind(final InetSocketAddress localAddr) throws IOException {
@@ -415,6 +410,7 @@ public abstract class AbstractReactor implements IReactor {
          */
         public SelectorProcessor(final String name) {
             super(name);
+            setDaemon(true);
         }
 
         /** {@inheritDoc} */

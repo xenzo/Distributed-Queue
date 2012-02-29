@@ -37,12 +37,13 @@ public class Connector extends AbstractReactor implements IConnector {
 
     /** {@inheritDoc} */
     @Override public ISession connectToServer(final InetSocketAddress remoteAddr, final InetAddress localAddr) {
+        ISession session = null;
         try {
-            ISession session = connect(remoteAddr, localAddr);
+            session = connect(remoteAddr, localAddr);
         } catch (IOException ex) {
             logger.log(WARNING, "" + ex.getMessage(), ex);
         }
-        return null;
+        return session;
     }
 
     /** {@inheritDoc} */
