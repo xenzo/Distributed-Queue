@@ -1,19 +1,31 @@
 package com.tmax.probus.nio.api;
 
-
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-
-
 /**
- * @author xenzo
+ * The Interface IConnector.
  */
 public interface IConnector extends IReactor {
     /**
-     * Connect.
-     * @param remoteAddr the remote addr
-     * @param localAddr the local addr
+     * Connect to server.
+     * @param remoteIp the remote ip
+     * @param remotePort the remote port
+     * @param localIp the local ip
      * @return the i session
      */
-    ISession connectToServer(InetSocketAddress remoteAddr, InetAddress localAddr);
+    ISession connectToServer(String remoteIp, int remotePort, String localIp, int localPort);
+
+    /**
+     * Connect to server.
+     * @param remoteIp the remote ip
+     * @param remotePort the remote port
+     * @return the i session
+     */
+    ISession connectToServer(String remoteIp, int remotePort, String localIp);
+
+    /**
+     * Connect to server.
+     * @param remoteIp the remote ip
+     * @param remotePort the remote port
+     * @return the i session
+     */
+    ISession connectToServer(String remoteIp, int remotePort);
 }

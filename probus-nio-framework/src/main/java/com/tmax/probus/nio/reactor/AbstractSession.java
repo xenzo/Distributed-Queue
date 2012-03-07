@@ -41,16 +41,17 @@ public abstract class AbstractSession implements ISession {
     /** The read buffer_. */
     private ByteBuffer readBuffer_;
     /** The reactor_. */
-    private IReactor reactor_;
+    private final IReactor reactor_;
 
     /**
      * Instantiates a new abstract session.
      * @param reactor the reactor
      * @param channel the channel
      */
-    public AbstractSession(IReactor reactor, final SocketChannel channel) {
+    protected AbstractSession(final IReactor reactor, final SocketChannel channel) {
         reactor_ = reactor;
         channel_ = channel;
+        initSocket();
     }
 
     /** {@inheritDoc} */
@@ -89,13 +90,13 @@ public abstract class AbstractSession implements ISession {
     }
 
     /** {@inheritDoc} */
-    @Override public boolean onMessageRead() {
+    @Override public boolean onMessageRead(boolean isEof) {
         boolean result = false;
         final ByteBuffer readBuffer = acquireReadBuffer();
         try {
             final IMessageReader reader = getMessageReader();
             readBuffer.flip();
-            result = reader.readBuffer(readBuffer);
+            result = reader.readBuffer(readBuffer, isEof);
             readBuffer.compact();
             return result;
         } finally {
@@ -126,12 +127,17 @@ public abstract class AbstractSession implements ISession {
         final Queue<ByteBuffer> writeQueue = acquireWriteQueue();
         try {
             writeQueue.add(buffer);
-            reactor_.getReadWriteProcessor().changeOpts(channel_, SelectionKey.OP_WRITE);
-            reactor_.getReadWriteProcessor().wakeup();
+            reactor_.changeOpts(channel_, SelectionKey.OP_WRITE);
         } finally {
             releaseWriteQueue();
         }
     }
+
+    /**
+     * Creates the read buffer.
+     * @return the byte buffer
+     */
+    abstract protected ByteBuffer createReadBuffer();
 
     /**
      * Creates the write byte buffer.
@@ -145,14 +151,13 @@ public abstract class AbstractSession implements ISession {
     }
 
     /**
-     * Creates the read buffer.
-     * @return the byte buffer
-     */
-    abstract protected ByteBuffer createReadBuffer();
-
-    /**
      * Gets the message reader.
      * @return the message reader
      */
     abstract protected IMessageReader getMessageReader();
+
+    /**
+     * Inits the socket.
+     */
+    abstract protected void initSocket();
 }

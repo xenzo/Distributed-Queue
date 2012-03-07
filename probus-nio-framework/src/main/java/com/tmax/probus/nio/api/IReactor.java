@@ -12,88 +12,35 @@
  */
 package com.tmax.probus.nio.api;
 
-
-import java.nio.channels.SelectableChannel;
-import java.nio.channels.SocketChannel;
-
-
 /**
- * The Interface IReactor.
+ * Reactor 인터페이스
  */
-public interface IReactor {
+public interface IReactor extends ISelector {
     /**
-     * Change opts.
-     * @param channel the channel
-     * @param opts the opts
-     */
-    void changeOpts(SelectableChannel channel, int opts);
-
-    /**
-     * Deregister.
-     * @param channel the channel
-     */
-    void deregister(SelectableChannel channel);
-
-    /**
-     * Destroy.
+     * Reactor 종료
      */
     void destroy();
 
     /**
-     * Gets the accept processor.
+     * Accept 이벤트를 처리할 ISelectorProcessor객체를 반환한다.
      * @return the accept processor
      */
     ISelectorProcessor getAcceptProcessor();
 
     /**
-     * Gets the connect processor.
+     * Connect 이벤트를 처리할 ISelectorProcessor객체를 반환한다.
      * @return the connect processor
      */
     ISelectorProcessor getConnectProcessor();
 
     /**
-     * Gets the read processor.
+     * Read/Write 이벤트를 처리할 ISelectorProcessor객체를 반환한다.
      * @return the read processor
      */
     ISelectorProcessor getReadWriteProcessor();
 
     /**
-     * Gets the session.
-     * @param channel the channel
-     * @return the session
-     */
-    ISession getSession(SocketChannel channel);
-
-    /**
-     * Inits the.
+     * Reactor 시동
      */
     void init();
-
-    /**
-     * Put session.
-     * @param channel the channel
-     * @param session the session
-     */
-    void putSession(SocketChannel channel, ISession session);
-
-    /**
-     * Register.
-     * @param channel the channel
-     * @param opts the opts
-     */
-    void register(SelectableChannel channel, int opts);
-
-    /**
-     * Removes the opts.
-     * @param channel the channel
-     * @param opts the opts
-     */
-    void removeOpts(SelectableChannel channel, int opts);
-
-    /**
-     * Removes the session.
-     * @param channel the channel
-     * @return the i session
-     */
-    ISession removeSession(SocketChannel channel);
 }

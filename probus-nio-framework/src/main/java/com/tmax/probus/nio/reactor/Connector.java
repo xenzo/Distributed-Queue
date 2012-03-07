@@ -16,7 +16,6 @@ package com.tmax.probus.nio.reactor;
 import static java.util.logging.Level.*;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.channels.SelectableChannel;
@@ -34,13 +33,40 @@ import com.tmax.probus.nio.api.ISession;
 public class Connector extends AbstractReactor implements IConnector {
     /** Logger for this class. */
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.nio.reactor");
+    ISelectorProcessor connectProcessor_, readWriteProcessor_;
+
+    /**
+     *
+     */
+    public Connector() {
+        setSelectorTimeout(3000);
+        connectProcessor_ = createSelectorProcessor("CONNECT_THREAD");
+        readWriteProcessor_ = createSelectorProcessor("WRITE_THREAD");
+    }
+
+    public static void main(final String... args) {
+        final Connector connector = new Connector();
+        connector.init();
+    }
 
     /** {@inheritDoc} */
-    @Override public ISession connectToServer(final InetSocketAddress remoteAddr, final InetAddress localAddr) {
+    @Override public ISession connectToServer(final String remoteIp, final int remotePort) {
+        return connectToServer(remoteIp, remotePort, "localhost", 0);
+    }
+
+    /** {@inheritDoc} */
+    @Override public ISession connectToServer(final String remoteIp, final int remotePort, final String localIp) {
+        return connectToServer(remoteIp, remotePort, localIp, 0);
+    }
+
+    /** {@inheritDoc} */
+    @Override public ISession connectToServer(final String remoteIp, final int remotePort, final String localIp, final int localPort) {
         ISession session = null;
+        final InetSocketAddress remoteAddr = new InetSocketAddress(remoteIp, remotePort);
+        final InetSocketAddress localAddr = new InetSocketAddress(localIp, localPort);
         try {
             session = connect(remoteAddr, localAddr);
-        } catch (IOException ex) {
+        } catch (final IOException ex) {
             logger.log(WARNING, "" + ex.getMessage(), ex);
         }
         return session;
@@ -48,26 +74,17 @@ public class Connector extends AbstractReactor implements IConnector {
 
     /** {@inheritDoc} */
     @Override public ISelectorProcessor getAcceptProcessor() {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "getAcceptProcessor");
-        // XXX must do something
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "getAcceptProcessor");
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     /** {@inheritDoc} */
     @Override public ISelectorProcessor getConnectProcessor() {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "getConnectProcessor");
-        // XXX must do something
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "getConnectProcessor");
-        return null;
+        return connectProcessor_;
     }
 
     /** {@inheritDoc} */
     @Override public ISelectorProcessor getReadWriteProcessor() {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "getReadWriteProcessor");
-        // XXX must do something
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "getReadWriteProcessor");
-        return null;
+        return readWriteProcessor_;
     }
 
     /** {@inheritDoc} */

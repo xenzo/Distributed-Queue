@@ -12,54 +12,22 @@
  */
 package com.tmax.probus.nio.api;
 
-
-import java.nio.channels.SelectableChannel;
-
-
 /**
- * The Interface ISelectorProcessor.
+ * selector 처리자 인터페이스
  */
-public interface ISelectorProcessor {
-    /**
-     * Change opts.
-     * @param channel the channel
-     * @param opts the opts
-     */
-    void changeOpts(SelectableChannel channel, int opts);
-
-    /**
-     * Deregister.
-     * @param channel the channel
-     */
-    void deregister(SelectableChannel channel);
-
-    /**
-     * Checks if is running.
-     * @return true, if checks if is running
-     */
-    boolean isRunning();
-
-    /**
-     * Register.
-     * @param channel the channel
-     * @param opts the opts
-     */
-    void register(final SelectableChannel channel, final int opts);
-
-    /**
-     * Removes the opts.
-     * @param channel the channel
-     * @param opts the opts
-     */
-    void removeOpts(SelectableChannel channel, int opts);
-
+public interface ISelectorProcessor extends ISelector {
     /**
      * Start.
      */
-    void start();
+    void startUp();
 
     /**
-     * Wakeup.
+     * Shut down.
      */
-    void wakeup();
+    void shutDown();
+
+    /**
+     * Wakeup selector.
+     */
+    void wakeupSelector();
 }

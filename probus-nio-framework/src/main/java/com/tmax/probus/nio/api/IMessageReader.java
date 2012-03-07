@@ -17,12 +17,14 @@ import java.nio.ByteBuffer;
 
 
 /**
- *
+ * The Interface IMessageReader.
  */
 public interface IMessageReader {
     /**
-     * @param readBuffer
-     * @return
+     * Read buffer.
+     * @param readBuffer the read buffer
+     * @param isEof
+     * @return 메세지가 끝까지 읽어들여졌는지의 여부를 반환한다.
      */
-    boolean readBuffer(ByteBuffer readBuffer);
+    boolean readBuffer(ByteBuffer buffer, boolean isEof);
 }

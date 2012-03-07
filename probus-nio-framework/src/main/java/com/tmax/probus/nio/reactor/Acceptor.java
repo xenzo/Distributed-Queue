@@ -31,18 +31,18 @@ import com.tmax.probus.nio.api.ISession;
 
 
 /**
- *
+ * The Class Acceptor.
  */
 public class Acceptor extends AbstractReactor implements IAcceptor {
-    /**
-     * Logger for this class
-     */
+    /** Logger for this class. */
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.nio.reactor");
+    /** The read write processor_. */
     private final ISelectorProcessor acceptProcessor_, readWriteProcessor_;
+    /** The server socket channel map_. */
     private Map<InetSocketAddress, ServerSocketChannel> serverSocketChannelMap_ = new ConcurrentHashMap<InetSocketAddress, ServerSocketChannel>();
 
     /**
-     *
+     * Instantiates a new acceptor.
      */
     public Acceptor() {
         setSelectorTimeout(3000);
@@ -50,27 +50,38 @@ public class Acceptor extends AbstractReactor implements IAcceptor {
         readWriteProcessor_ = createSelectorProcessor("READ_THREAD");
     }
 
+    /**
+     * The main method.
+     * @param args the arguments
+     */
     public static void main(final String... args) {
         final Acceptor acceptor = new Acceptor();
         acceptor.init();
+        acceptor.openServer(8088);
+    }
+
+    /** {@inheritDoc} */
+    @Override public void closeServer(final int port) {
+        closeServer("localhost", port);
+    }
+
+    /** {@inheritDoc} */
+    @Override public void closeServer(final String ip, final int port) {
+        final InetSocketAddress localAddr = new InetSocketAddress(ip, port);
+        final ServerSocketChannel serverSocketChannel = serverSocketChannelMap_.remove(localAddr);
+        try {
+            if (serverSocketChannel != null) closeChannel(serverSocketChannel);
+        } catch (final IOException ex) {
+            logger.log(WARNING, "" + ex.getMessage(), ex);
+        }
     }
 
     /** {@inheritDoc} */
     @Override public void destroy() {
         super.destroy();
-        Map<InetSocketAddress, ServerSocketChannel> map = serverSocketChannelMap_;
+        final Map<InetSocketAddress, ServerSocketChannel> map = serverSocketChannelMap_;
         serverSocketChannelMap_ = null;
         map.clear();
-    }
-
-    /** {@inheritDoc} */
-    @Override public void closeServer(final InetSocketAddress localAddr) {
-        ServerSocketChannel serverSocketChannel = serverSocketChannelMap_.remove(localAddr);
-        try {
-            if (serverSocketChannel != null) closeChannel(serverSocketChannel);
-        } catch (IOException ex) {
-            logger.log(WARNING, "" + ex.getMessage(), ex);
-        }
     }
 
     /** {@inheritDoc} */
@@ -88,17 +99,18 @@ public class Acceptor extends AbstractReactor implements IAcceptor {
         return readWriteProcessor_;
     }
 
-    /**
-     * {@inheritDoc}
-     * @param port
-     * @param ip
-     */
-    @Override public void openServer(String ip, int port) {
+    /** {@inheritDoc} */
+    @Override public void openServer(final int port) {
+        openServer("localhost", port);
+    }
+
+    /** {@inheritDoc} */
+    @Override public void openServer(final String ip, final int port) {
+        final InetSocketAddress localAddr = new InetSocketAddress(ip, port);
         try {
-            InetSocketAddress localAddr = new InetSocketAddress(ip, port);
-            ServerSocketChannel serverSocketChannel = bind(localAddr);
+            final ServerSocketChannel serverSocketChannel = bind(localAddr);
             serverSocketChannelMap_.put(localAddr, serverSocketChannel);
-        } catch (IOException ex) {
+        } catch (final IOException ex) {
             logger.log(WARNING, "" + ex.getMessage(), ex);
         }
     }

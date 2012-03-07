@@ -16,7 +16,6 @@ package com.tmax.probus.nio.reactor;
 import static java.util.logging.Level.*;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
@@ -26,11 +25,9 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Logger;
@@ -38,27 +35,25 @@ import java.util.logging.Logger;
 import com.tmax.probus.nio.api.IReactor;
 import com.tmax.probus.nio.api.ISelectorProcessor;
 import com.tmax.probus.nio.api.ISession;
+import com.tmax.probus.nio.api.ISessionManager;
 
 
 /**
  * The Class AbstractReactor.
  */
-public abstract class AbstractReactor implements IReactor {
+public abstract class AbstractReactor implements IReactor, ISessionManager {
     /** The Constant MAX_RETRY_WRITE_CNT. */
     private static final int MAX_RETRY_WRITE_CNT = 2;
     /** Logger for this class. */
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.nio.reactor");
     /** The time out_. */
     private long timeOut_;
-    /** The is continue_. */
-    private volatile boolean isContinue_ = false;
     /** The channel session map_. */
-    private Map<SelectableChannel, ISession> channelSessionMap_ = new ConcurrentHashMap<SelectableChannel, ISession>();
-    /** The processor set_. */
-    private Set<ISelectorProcessor> processorSet_ = new HashSet<ISelectorProcessor>();
+    private Map<SelectableChannel, ISession> channelSessionMap_;
 
     /** {@inheritDoc} */
     @Override public void changeOpts(final SelectableChannel channel, final int opts) {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "changeOpts(SelectableChannel=" + channel + ", int=" + opts + ")", "start");
         switch (opts) {
         case SelectionKey.OP_ACCEPT:
             getAcceptProcessor().changeOpts(channel, opts);
@@ -71,48 +66,60 @@ public abstract class AbstractReactor implements IReactor {
             getReadWriteProcessor().changeOpts(channel, opts);
             break;
         }
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "changeOpts(SelectableChannel, int)", "end");
     }
 
     /** {@inheritDoc} */
     @Override public void deregister(final SelectableChannel channel) {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "deregister(SelectableChannel=" + channel + ")", "start");
         if (channel instanceof ServerSocketChannel) getAcceptProcessor().deregister(channel);
         else {
             getReadWriteProcessor().deregister(channel);
             getConnectProcessor().deregister(channel);
         }
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "deregister(SelectableChannel)", "end");
     }
 
     /** {@inheritDoc} */
     @Override public void destroy() {
-        isContinue_ = false;
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "destroy()", "start");
+        if (getAcceptProcessor() != null) getAcceptProcessor().shutDown();
+        if (getConnectProcessor() != null) getConnectProcessor().shutDown();
+        if (getReadWriteProcessor() != null) getReadWriteProcessor().shutDown();
         final Map<SelectableChannel, ISession> channelSessionMap = channelSessionMap_;
         channelSessionMap_ = null;
         channelSessionMap.clear();
-        final Set<ISelectorProcessor> processorSet = processorSet_;
-        processorSet_ = null;
-        processorSet.clear();
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "destroy()", "end");
     }
 
     /** {@inheritDoc} */
     @Override public ISession getSession(final SocketChannel channel) {
-        return channelSessionMap_.get(channel);
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "getSession(SocketChannel=" + channel + ")", "start");
+        final ISession returnISession = channelSessionMap_.get(channel);
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "getSession(SocketChannel)", "end - return value=" + returnISession);
+        return returnISession;
     }
 
     /** {@inheritDoc} */
     @Override public void init() {
-        isContinue_ = true;
-        for (final ISelectorProcessor processor : processorSet_) {
-            if (!processor.isRunning()) processor.start();
-        }
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "init()", "start");
+        channelSessionMap_ = new ConcurrentHashMap<SelectableChannel, ISession>();
+        if (getReadWriteProcessor() != null) getReadWriteProcessor().startUp();
+        if (getConnectProcessor() != null) getConnectProcessor().startUp();
+        if (getAcceptProcessor() != null) getAcceptProcessor().startUp();
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "init()", "end");
     }
 
     /** {@inheritDoc} */
     @Override public void putSession(final SocketChannel channel, final ISession session) {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "putSession(SocketChannel=" + channel + ", ISession=" + session + ")", "start");
         channelSessionMap_.put(channel, session);
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "putSession(SocketChannel, ISession)", "end");
     }
 
     /** {@inheritDoc} */
     @Override public void register(final SelectableChannel channel, final int opts) {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "register(SelectableChannel=" + channel + ", int=" + opts + ")", "start");
         switch (opts) {
         case SelectionKey.OP_ACCEPT:
             getAcceptProcessor().register(channel, opts);
@@ -125,10 +132,12 @@ public abstract class AbstractReactor implements IReactor {
             getReadWriteProcessor().register(channel, opts);
             break;
         }
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "register(SelectableChannel, int)", "end");
     }
 
     /** {@inheritDoc} */
     @Override public void removeOpts(final SelectableChannel channel, final int opts) {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "removeOpts(SelectableChannel=" + channel + ", int=" + opts + ")", "start");
         switch (opts) {
         case SelectionKey.OP_ACCEPT:
             getAcceptProcessor().removeOpts(channel, opts);
@@ -141,11 +150,15 @@ public abstract class AbstractReactor implements IReactor {
             getReadWriteProcessor().changeOpts(channel, opts);
             break;
         }
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "removeOpts(SelectableChannel, int)", "end");
     }
 
     /** {@inheritDoc} */
     @Override public ISession removeSession(final SocketChannel channel) {
-        return channelSessionMap_.remove(channel);
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "removeSession(SocketChannel=" + channel + ")", "start");
+        final ISession returnISession = channelSessionMap_.remove(channel);
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "removeSession(SocketChannel)", "end - return value=" + returnISession);
+        return returnISession;
     }
 
     /**
@@ -153,8 +166,10 @@ public abstract class AbstractReactor implements IReactor {
      * @param channel the channel
      */
     protected void afterAccept(final SocketChannel channel) {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "afterAccept(SocketChannel=" + channel + ")", "start");
         final ISession session = getSession(channel);
         session.afterAccept(this);
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "afterAccept(SocketChannel)", "end");
     }
 
     /**
@@ -162,8 +177,10 @@ public abstract class AbstractReactor implements IReactor {
      * @param channel the channel
      */
     protected void afterConnect(final SocketChannel channel) {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "afterConnect(SocketChannel=" + channel + ")", "start");
         final ISession session = getSession(channel);
         session.afterConnect(this);
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "afterConnect(SocketChannel)", "end");
     }
 
     /**
@@ -171,8 +188,10 @@ public abstract class AbstractReactor implements IReactor {
      * @param channel the channel
      */
     protected void afterRead(final SocketChannel channel) {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "afterRead(SocketChannel=" + channel + ")", "start");
         final ISession session = getSession(channel);
         session.afterRead(this);
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "afterRead(SocketChannel)", "end");
     }
 
     /**
@@ -180,8 +199,10 @@ public abstract class AbstractReactor implements IReactor {
      * @param channel the channel
      */
     protected void afterWrite(final SocketChannel channel) {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "afterWrite(SocketChannel=" + channel + ")", "start");
         final ISession session = getSession(channel);
         session.afterWrite(this);
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "afterWrite(SocketChannel)", "end");
     }
 
     /**
@@ -191,13 +212,13 @@ public abstract class AbstractReactor implements IReactor {
      * @throws IOException Signals that an I/O exception has occurred.
      */
     protected ServerSocketChannel bind(final InetSocketAddress localAddr) throws IOException {
-        if (logger.isLoggable(FINER)) logger.entering("AbstractReactor", "bind(InetSocketAddress=" + localAddr + ")", "start");
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "bind(InetSocketAddress=" + localAddr + ")", "start");
         ServerSocketChannel server = null;
         server = ServerSocketChannel.open();
         server.configureBlocking(false);
         server.socket().bind(localAddr);
         getAcceptProcessor().register(server, SelectionKey.OP_ACCEPT);
-        if (logger.isLoggable(FINER)) logger.exiting("AbstractReactor", "bind(InetSocketAddress)", "end");
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "bind(InetSocketAddress)", "end - return value=" + server);
         return server;
     }
 
@@ -207,6 +228,7 @@ public abstract class AbstractReactor implements IReactor {
      * @throws IOException Signals that an I/O exception has occurred.
      */
     protected final void closeChannel(final SelectableChannel channel) throws IOException {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "closeChannel(SelectableChannel=" + channel + ")", "start");
         if (channel instanceof ServerSocketChannel) {
             final ServerSocketChannel c = (ServerSocketChannel) channel;
             c.socket().close();
@@ -216,6 +238,7 @@ public abstract class AbstractReactor implements IReactor {
             c.socket().close();
             c.close();
         }
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "closeChannel(SelectableChannel)", "end");
     }
 
     /**
@@ -225,18 +248,19 @@ public abstract class AbstractReactor implements IReactor {
      * @return the i session
      * @throws IOException Signals that an I/O exception has occurred.
      */
-    protected ISession connect(final InetSocketAddress remoteAddr, final InetAddress localAddr)
+    protected ISession connect(final InetSocketAddress remoteAddr, final InetSocketAddress localAddr)
             throws IOException {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "connect");
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "connect(InetSocketAddress=" + remoteAddr + ", InetSocketAddress=" + localAddr + ")", "start");
         SocketChannel channel = null;
         ISession session = null;
         channel = SocketChannel.open();
         channel.configureBlocking(false);
-        if (localAddr != null) channel.socket().bind(new InetSocketAddress(localAddr, 0));
+        if (localAddr != null) channel.socket().bind(localAddr);
         channel.connect(remoteAddr);
         session = createSession(null, channel);
         putSession(channel, session);
         getConnectProcessor().register(channel, SelectionKey.OP_CONNECT);
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "connect(InetSocketAddress, InetSocketAddress)", "end - return value=" + session);
         return session;
     }
 
@@ -246,8 +270,9 @@ public abstract class AbstractReactor implements IReactor {
      * @return the i selector processor
      */
     protected ISelectorProcessor createSelectorProcessor(final String name) {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "createSelectorProcessor(String=" + name + ")", "start");
         final ISelectorProcessor processor = new SelectorProcessor(name);
-        processorSet_.add(processor);
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "createSelectorProcessor(String)", "end - return value=" + processor);
         return processor;
     }
 
@@ -272,19 +297,24 @@ public abstract class AbstractReactor implements IReactor {
      * @throws IOException the IO exception
      */
     protected boolean readMessage(final SocketChannel channel) throws IOException {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "readMessage(SocketChannel=" + channel + ")", "start");
         final ISession session = getSession(channel);
         final ByteBuffer readBuffer = session.acquireReadBuffer();
+        int nRead = 0, nLastRead = 0;
         try {
-            int nRead = 0, nLastRead = 0;
-            System.out.println(readBuffer.hasRemaining());
             while (readBuffer.hasRemaining() && (nLastRead = channel.read(readBuffer)) > 0)
                 nRead += nLastRead;
-            if (logger.isLoggable(FINE)) logger.logp(FINE, getClass().getName(), "processRead(SocketChannel)", "nRead=" + nRead);
-            if (nLastRead < 0) { return false; }
+            if (logger.isLoggable(FINE)) logger.logp(FINE, getClass().getName(), "readMessage(SocketChannel)", "nRead=" + nRead);
+            if (nLastRead < 0) {
+                if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "readMessage(SocketChannel)", "end - return value=" + false);
+                return false;
+            }
         } finally {
             session.releaseReadBuffer();
         }
-        return session.onMessageRead();
+        final boolean result = session.onMessageRead(nLastRead < 0);
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "readMessage(SocketChannel)", "end - return value=" + result);
+        return result;
     }
 
     /**
@@ -302,7 +332,7 @@ public abstract class AbstractReactor implements IReactor {
      * @throws IOException the IO exception
      */
     protected boolean writeMessage(final SocketChannel channel) throws IOException {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "writeMessage");
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "writeMessage(SocketChannel=" + channel + ")", "start");
         final ISession session = getSession(channel);
         final Queue<ByteBuffer> queue = session.acquireWriteQueue();
         try {
@@ -318,7 +348,7 @@ public abstract class AbstractReactor implements IReactor {
         } finally {
             session.releaseWriteQueue();
         }
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "writeMessage");
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "writeMessage(SocketChannel)", "end - return value=" + true);
         return true;
     }
 
@@ -328,7 +358,7 @@ public abstract class AbstractReactor implements IReactor {
      * @throws IOException the IO exception
      */
     private final void handleAccept(final SelectionKey key) throws IOException {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "processAccept");
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "handleAccept(SelectionKey=" + key + ")", "start");
         final ServerSocketChannel serverChannel = (ServerSocketChannel) key.channel();
         final SocketChannel channel = serverChannel.accept();
         if (channel != null) {
@@ -340,7 +370,7 @@ public abstract class AbstractReactor implements IReactor {
                 afterAccept(channel);
             }
         }
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "processAccept");
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "handleAccept(SelectionKey)", "end");
     }
 
     /**
@@ -349,16 +379,14 @@ public abstract class AbstractReactor implements IReactor {
      * @throws IOException the IO exception
      */
     private final void handleConnect(final SelectionKey key) throws IOException {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "processConnect");
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "handleConnect(SelectionKey=" + key + ")", "start");
         final SocketChannel channel = (SocketChannel) key.channel();
-        if (channel != null) {
-            if (channel.finishConnect()) {
-                key.interestOps(0);
-                initSocket(channel.socket());
-                afterConnect(channel);
-            }
+        if (channel != null && channel.finishConnect()) {
+            key.interestOps(0);
+            initSocket(channel.socket());
+            afterConnect(channel);
         }
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "processConnect");
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "handleConnect(SelectionKey)", "end");
     }
 
     /**
@@ -367,10 +395,10 @@ public abstract class AbstractReactor implements IReactor {
      * @throws IOException the IO exception
      */
     private final void handleRead(final SelectionKey key) throws IOException {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "processRead");
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "handleRead(SelectionKey=" + key + ")", "start");
         final SocketChannel channel = (SocketChannel) key.channel();
         if (readMessage(channel)) afterRead(channel);
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "processRead");
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "handleRead(SelectionKey)", "end");
     }
 
     /**
@@ -379,18 +407,10 @@ public abstract class AbstractReactor implements IReactor {
      * @throws IOException the IO exception
      */
     private final void handleWrite(final SelectionKey key) throws IOException {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "processWrite");
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "handleWrite(SelectionKey=" + key + ")", "start");
         final SocketChannel channel = (SocketChannel) key.channel();
         if (writeMessage(channel)) afterWrite(channel);
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "processWrite");
-    }
-
-    /**
-     * Checks if is continue.
-     * @return true, if checks if is continue
-     */
-    private final boolean isContinue() {
-        return isContinue_;
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "handleWrite(SelectionKey)", "end");
     }
 
     /**
@@ -401,8 +421,8 @@ public abstract class AbstractReactor implements IReactor {
         private Selector selector_;
         /** The change queue_. */
         Queue<ChangeRequest> changeQueue_ = new LinkedBlockingQueue<ChangeRequest>();
-        /** The status_. */
-        Status status_ = Status.STOPPED;
+        /** The is continue_. */
+        private volatile boolean isContinue_ = false;
 
         /**
          * Instantiates a new selector processor.
@@ -410,44 +430,67 @@ public abstract class AbstractReactor implements IReactor {
          */
         public SelectorProcessor(final String name) {
             super(name);
-            setDaemon(true);
+            //setDaemon(true);
         }
 
         /** {@inheritDoc} */
         @Override public void changeOpts(final SelectableChannel channel, final int opts) {
+            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "changeOpts(SelectableChannel=" + channel + ", int=" + opts + ")", "start");
             addChangeRequest(new ChangeRequest(ChangeType.CHANGE_OPTS, channel, opts));
+            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "changeOpts(SelectableChannel, int)", "end");
         }
 
         /** {@inheritDoc} */
         @Override public void deregister(final SelectableChannel channel) {
+            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "deregister(SelectableChannel=" + channel + ")", "start");
             addChangeRequest(new ChangeRequest(ChangeType.DEREGISTER, channel, -1));
-        }
-
-        /** {@inheritDoc} */
-        @Override public boolean isRunning() {
-            return status_ == Status.STARTED;
+            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "deregister(SelectableChannel)", "end");
         }
 
         /** {@inheritDoc} */
         @Override public void register(final SelectableChannel channel, final int opts) {
+            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "register(SelectableChannel=" + channel + ", int=" + opts + ")", "start");
             addChangeRequest(new ChangeRequest(ChangeType.REGISTER, channel, opts));
+            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "register(SelectableChannel, int)", "end");
         }
 
         /** {@inheritDoc} */
         @Override public void removeOpts(final SelectableChannel channel, final int opts) {
+            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "removeOpts(SelectableChannel=" + channel + ", int=" + opts + ")", "start");
             addChangeRequest(new ChangeRequest(ChangeType.REMOVE_OPTS, channel, opts));
+            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "removeOpts(SelectableChannel, int)", "end");
         }
 
         /** {@inheritDoc} */
         @Override public void run() {
+            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "run()", "start");
             setUp();
             selectAll();
             tearDown();
+            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "run()", "end");
         }
 
         /** {@inheritDoc} */
-        @Override public void wakeup() {
+        @Override public void shutDown() {
+            if (isContinue()) {
+                isContinue_ = false;
+                wakeupSelector();
+            }
+        }
+
+        /** {@inheritDoc} */
+        @Override public void startUp() {
+            if (!isContinue()) {
+                isContinue_ = true;
+                super.start();
+            }
+        }
+
+        /** {@inheritDoc} */
+        @Override public void wakeupSelector() {
+            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "wakeup()", "start");
             selector_.wakeup();
+            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "wakeup()", "end");
         }
 
         /**
@@ -467,22 +510,29 @@ public abstract class AbstractReactor implements IReactor {
          * Sets the up.
          */
         protected void setUp() {
+            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "setUp()", "start");
             try {
                 selector_ = Selector.open();
             } catch (final IOException ex) {
-                logger.log(WARNING, "" + ex.getMessage(), ex);
+                logger.logp(SEVERE, getClass().getName(), "setUp()", "", ex);
             }
-            status_ = Status.STARTED;
+            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "setUp()", "end");
         }
 
         /**
          * Tear down.
          */
         protected void tearDown() {
-            status_ = Status.STOPPED;
+            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "tearDown()", "start");
+            try {
+                selector_.close();
+            } catch (IOException ex) {
+                logger.logp(SEVERE, getClass().getName(), "tearDown()", "", ex);
+            }
             final Queue<ChangeRequest> queue = changeQueue_;
             changeQueue_ = null;
             queue.clear();
+            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "tearDown()", "end");
         }
 
         /**
@@ -490,8 +540,18 @@ public abstract class AbstractReactor implements IReactor {
          * @param request the request
          */
         private final void addChangeRequest(final ChangeRequest request) {
+            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "addChangeRequest(ChangeRequest=" + request + ")", "start");
             changeQueue_.add(request);
-            wakeup();
+            wakeupSelector();
+            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "addChangeRequest(ChangeRequest)", "end");
+        }
+
+        /**
+         * Checks if is continue.
+         * @return true, if checks if is continue
+         */
+        private final boolean isContinue() {
+            return isContinue_;
         }
 
         /**
@@ -501,6 +561,7 @@ public abstract class AbstractReactor implements IReactor {
             ChangeRequest request = null;
             while ((request = changeQueue_.poll()) != null) {
                 final SelectionKey key = request.channel.keyFor(selector_);
+                if (logger.isLoggable(FINEST)) logger.logp(FINEST, getClass().getName(), "processChangeRequest()", "change request(" + request + "), selection key(" + key + ")");
                 switch (request.type) {
                 case CHANGE_OPTS:
                     if (key != null) key.interestOps(request.opts);
@@ -510,6 +571,7 @@ public abstract class AbstractReactor implements IReactor {
                     break;
                 case DEREGISTER:
                     if (key != null) {
+                        key.interestOps(0);
                         key.attach(null);
                         key.cancel();
                     }
@@ -518,7 +580,7 @@ public abstract class AbstractReactor implements IReactor {
                     try {
                         request.channel.register(selector_, request.opts);
                     } catch (final ClosedChannelException ex) {
-                        logger.log(WARNING, "" + ex.getMessage(), ex);
+                        logger.throwing(getClass().getName(), "processChangeRequest()", ex);
                     }
                     break;
                 }
@@ -529,19 +591,20 @@ public abstract class AbstractReactor implements IReactor {
          * Select all.
          */
         private final void selectAll() {
-            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "selectAll");
+            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "selectAll()", "start");
             while (isContinue()) {
                 processBeforeJobs();
                 selectOne();
                 processAfterJobs();
             }
-            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "selectAll");
+            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "selectAll()", "end");
         }
 
         /**
          * Select one.
          */
         private final void selectOne() {
+            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "selectOne()", "start");
             try {
                 final int nKeys = selector_.select(timeOut_);
                 if (nKeys <= 0) return;
@@ -556,8 +619,9 @@ public abstract class AbstractReactor implements IReactor {
                     if (key.isWritable()) handleWrite(key);
                 }
             } catch (final IOException ex) {
-                logger.log(WARNING, "" + ex.getMessage(), ex);
+                logger.logp(SEVERE, getClass().getName(), "selectOne()", "", ex);
             }
+            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "selectOne()", "end");
         }
     }
 
@@ -583,6 +647,15 @@ public abstract class AbstractReactor implements IReactor {
             this.channel = channel;
             this.opts = opts;
         }
+
+        /** {@inheritDoc} */
+        @Override public String toString() {
+            final StringBuilder sb = new StringBuilder();
+            sb.append(type);
+            if (opts > 0) sb.append(" : ").append(opts);
+            if (channel != null) sb.append(" : ").append(channel);
+            return sb.toString();
+        }
     }
 
     /**
@@ -597,15 +670,5 @@ public abstract class AbstractReactor implements IReactor {
         CHANGE_OPTS,
         /** The REMOV e_ opts. */
         REMOVE_OPTS;
-    }
-
-    /**
-     * The Enum Status.
-     */
-    private enum Status {
-        /** The STARTED. */
-        STARTED,
-        /** The STOPPED. */
-        STOPPED;
     }
 }

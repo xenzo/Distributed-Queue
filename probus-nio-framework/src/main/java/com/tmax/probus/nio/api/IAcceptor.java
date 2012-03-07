@@ -1,22 +1,32 @@
 package com.tmax.probus.nio.api;
 
-
-import java.net.InetSocketAddress;
-
-
 /**
+ * The Interface IAcceptor.
  * @author xenzo
  */
 public interface IAcceptor extends IReactor {
     /**
-     * Bind.
-     * @param localAddr the local addr
+     * Close server.
+     * @param port the port
      */
-    void openServer(String ip, int port);
+    void closeServer(int port);
 
     /**
      * Unbind.
      * @param localAddr the local addr
      */
-    void closeServer(InetSocketAddress localAddr);
+    void closeServer(String ip, int port);
+
+    /**
+     * Open server.
+     * @param port the port
+     */
+    void openServer(int port);
+
+    /**
+     * Bind.
+     * @param ip the ip
+     * @param port the port
+     */
+    void openServer(String ip, int port);
 }
