@@ -56,7 +56,6 @@ public abstract class AbstractMessageReader implements IMessageReader {
             System.arraycopy(message_, 0, msg, 0, offset_);
             message_ = null;
             offset_ = 0;
-            onMessageReadComplete(msg);
             return true;
         }
         return false;
@@ -91,19 +90,12 @@ public abstract class AbstractMessageReader implements IMessageReader {
                 message_ = null;
                 state_ = State.HEADER;
                 offset_ = 0;
-                onMessageReadComplete(msg);
                 return true;
             }
             break;
         }
         return false;
     }
-
-    /**
-     * On message received complete.
-     * @param msg the msg
-     */
-    abstract protected void onMessageReadComplete(byte[] msg);
 
     /**
      * header로 부터 Header와 Body를 포함한 메세지 전체 길이를 반환해야 한다.

@@ -25,19 +25,19 @@ public interface IReactor extends ISelector {
      * Accept 이벤트를 처리할 ISelectorProcessor객체를 반환한다.
      * @return the accept processor
      */
-    ISelectorProcessor getAcceptProcessor();
+    ISelectorDispatcher getAcceptDispatcher();
 
     /**
      * Connect 이벤트를 처리할 ISelectorProcessor객체를 반환한다.
      * @return the connect processor
      */
-    ISelectorProcessor getConnectProcessor();
+    ISelectorDispatcher getConnectDispatcher();
 
     /**
      * Read/Write 이벤트를 처리할 ISelectorProcessor객체를 반환한다.
      * @return the read processor
      */
-    ISelectorProcessor getReadWriteProcessor();
+    ISelectorDispatcher getReadWriteDispatcher();
 
     /**
      * Reactor 시동

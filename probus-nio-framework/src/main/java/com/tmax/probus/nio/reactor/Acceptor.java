@@ -17,7 +17,6 @@ import static java.util.logging.Level.*;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
@@ -26,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import com.tmax.probus.nio.api.IAcceptor;
-import com.tmax.probus.nio.api.ISelectorProcessor;
+import com.tmax.probus.nio.api.ISelectorDispatcher;
 import com.tmax.probus.nio.api.ISession;
 
 
@@ -37,7 +36,7 @@ public class Acceptor extends AbstractReactor implements IAcceptor {
     /** Logger for this class. */
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.nio.reactor");
     /** The read write processor_. */
-    private final ISelectorProcessor acceptProcessor_, readWriteProcessor_;
+    private final ISelectorDispatcher acceptProcessor_, readWriteProcessor_;
     /** The server socket channel map_. */
     private Map<InetSocketAddress, ServerSocketChannel> serverSocketChannelMap_ = new ConcurrentHashMap<InetSocketAddress, ServerSocketChannel>();
 
@@ -85,17 +84,17 @@ public class Acceptor extends AbstractReactor implements IAcceptor {
     }
 
     /** {@inheritDoc} */
-    @Override public ISelectorProcessor getAcceptProcessor() {
+    @Override public ISelectorDispatcher getAcceptDispatcher() {
         return acceptProcessor_;
     }
 
     /** {@inheritDoc} */
-    @Override public ISelectorProcessor getConnectProcessor() {
+    @Override public ISelectorDispatcher getConnectDispatcher() {
         throw new UnsupportedOperationException();
     }
 
     /** {@inheritDoc} */
-    @Override public ISelectorProcessor getReadWriteProcessor() {
+    @Override public ISelectorDispatcher getReadWriteDispatcher() {
         return readWriteProcessor_;
     }
 
@@ -121,9 +120,5 @@ public class Acceptor extends AbstractReactor implements IAcceptor {
         // XXX must do something
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "createSession");
         return null;
-    }
-
-    /** {@inheritDoc} */
-    @Override protected void initSocket(final Socket socket) {
     }
 }

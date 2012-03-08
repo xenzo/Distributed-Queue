@@ -17,13 +17,12 @@ import static java.util.logging.Level.*;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SocketChannel;
 import java.util.logging.Logger;
 
 import com.tmax.probus.nio.api.IConnector;
-import com.tmax.probus.nio.api.ISelectorProcessor;
+import com.tmax.probus.nio.api.ISelectorDispatcher;
 import com.tmax.probus.nio.api.ISession;
 
 
@@ -33,7 +32,7 @@ import com.tmax.probus.nio.api.ISession;
 public class Connector extends AbstractReactor implements IConnector {
     /** Logger for this class. */
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.nio.reactor");
-    ISelectorProcessor connectProcessor_, readWriteProcessor_;
+    ISelectorDispatcher connectProcessor_, readWriteProcessor_;
 
     /**
      *
@@ -73,17 +72,17 @@ public class Connector extends AbstractReactor implements IConnector {
     }
 
     /** {@inheritDoc} */
-    @Override public ISelectorProcessor getAcceptProcessor() {
+    @Override public ISelectorDispatcher getAcceptDispatcher() {
         throw new UnsupportedOperationException();
     }
 
     /** {@inheritDoc} */
-    @Override public ISelectorProcessor getConnectProcessor() {
+    @Override public ISelectorDispatcher getConnectDispatcher() {
         return connectProcessor_;
     }
 
     /** {@inheritDoc} */
-    @Override public ISelectorProcessor getReadWriteProcessor() {
+    @Override public ISelectorDispatcher getReadWriteDispatcher() {
         return readWriteProcessor_;
     }
 
@@ -93,12 +92,5 @@ public class Connector extends AbstractReactor implements IConnector {
         // XXX must do something
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "createSession");
         return null;
-    }
-
-    /** {@inheritDoc} */
-    @Override protected void initSocket(final Socket socket) {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "initSocket");
-        // XXX must do something
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "initSocket");
     }
 }
