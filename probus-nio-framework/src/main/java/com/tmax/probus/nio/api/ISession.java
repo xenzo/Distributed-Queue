@@ -78,4 +78,16 @@ public interface ISession {
      * @return the message handler
      */
     IMessageHandler getMessageHandler();
+
+    /**
+     * Gets the connection event listener.
+     * @return the connection event listener
+     */
+    IConnectionEventListener getConnectionEventListener();
+
+    /**
+     *
+     * @return
+     */
+    IMessageEventListener getMessageEventListener();
 }

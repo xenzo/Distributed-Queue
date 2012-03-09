@@ -58,12 +58,10 @@ import com.tmax.probus.nio.api.ISelectorDispatcher;
  * The Class AbstractReactor.
  */
 public abstract class AbstractReactor implements IReactor {
-    /** The Constant MAX_RETRY_WRITE_CNT. */
-    private static final int MAX_RETRY_WRITE_CNT = 2;
     /** Logger for this class. */
     protected final transient Logger logger = Logger.getLogger("com.tmax.probus.nio.reactor");
     /** The dispatcher executor_. */
-    private ExecutorService dispatcherExecutor_;
+    private ExecutorService dispatchExecutor_;
 
     /** {@inheritDoc} */
     @Override public void changeOpts(final SelectableChannel channel, final int opts) {
@@ -96,25 +94,17 @@ public abstract class AbstractReactor implements IReactor {
 
     /** {@inheritDoc} */
     @Override public void destroy() {
-        if (!dispatcherExecutor_.isShutdown()) {
-            dispatcherExecutor_.shutdown();
+        if (!dispatchExecutor_.isShutdown()) {
+            dispatchExecutor_.shutdown();
             try {
-                dispatcherExecutor_.awaitTermination(1, TimeUnit.SECONDS);
+                dispatchExecutor_.awaitTermination(1, TimeUnit.SECONDS);
             } catch (final InterruptedException ex) {
                 logger.log(WARNING, "" + ex.getMessage(), ex);
             } finally {
-                if (!dispatcherExecutor_.isShutdown()) dispatcherExecutor_.shutdownNow();
-                dispatcherExecutor_ = null;
+                if (!dispatchExecutor_.isShutdown()) dispatchExecutor_.shutdownNow();
+                dispatchExecutor_ = null;
             }
         }
-    }
-
-    /**
-     * Gets the selector time out.
-     * @return the selector time out
-     */
-    protected long getSelectorTimeOut() {
-        return 3000L;
     }
 
     /** {@inheritDoc} */
@@ -128,7 +118,7 @@ public abstract class AbstractReactor implements IReactor {
                 return t;
             }
         };
-        dispatcherExecutor_ = new ThreadPoolExecutor(1, 3, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(), tf);
+        dispatchExecutor_ = new ThreadPoolExecutor(1, 3, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(), tf);
     }
 
     /** {@inheritDoc} */
@@ -177,7 +167,7 @@ public abstract class AbstractReactor implements IReactor {
         s.add(getConnectDispatcher());
         s.add(getAcceptDispatcher());
         for (final Runnable runnable : s)
-            dispatcherExecutor_.execute(runnable);
+            dispatchExecutor_.execute(runnable);
     }
 
     /** {@inheritDoc} */
@@ -188,12 +178,14 @@ public abstract class AbstractReactor implements IReactor {
     }
 
     /**
-     * Accept.
+     * OP_ACCEPT를 처리.
      * @param key the key
      * @return the socket channel
      * @throws IOException Signals that an I/O exception has occurred.
      */
-    abstract protected SocketChannel accept(SelectionKey key) throws IOException;
+    protected SocketChannel accept(final SelectionKey key) throws IOException {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Close channel.
@@ -216,10 +208,11 @@ public abstract class AbstractReactor implements IReactor {
 
     /**
      * Creates the selector processor.
+     * @param name the name
      * @return the i selector processor
      */
-    protected ISelectorDispatcher createSelectorDispatcher() {
-        return new SelectorDispatcher();
+    protected ISelectorDispatcher createSelectorDispatcher(final String name) {
+        return new SelectorDispatcher(name);
     }
 
     /**
@@ -242,6 +235,22 @@ public abstract class AbstractReactor implements IReactor {
      * @return the message handler
      */
     abstract protected IMessageHandler getMessageHandler(SocketChannel channel);
+
+    /**
+     * Gets the selector time out.
+     * @return the selector time out
+     */
+    protected long getSelectorTimeOut() {
+        return 3000L;
+    }
+
+    /**
+     * Gets the write retry count.
+     * @return the write retry count
+     */
+    protected int getWriteRetryCount() {
+        return 2;
+    }
 
     /**
      * Hand off after accept.
@@ -268,6 +277,13 @@ public abstract class AbstractReactor implements IReactor {
     abstract protected void handOffAfterWrite(SocketChannel channel);
 
     /**
+     * Inits the socket.
+     * @param socket the socket
+     */
+    protected void initSocket(final Socket socket) {
+    }
+
+    /**
      * channel로 부터 데이터를 읽는다.
      * @param channel the channel
      * @return 완결된 하나의 메세지를 다 읽게 되면 true를 반환
@@ -276,6 +292,7 @@ public abstract class AbstractReactor implements IReactor {
     protected byte[] readMessage(final SocketChannel channel) throws IOException {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "readMessage(SocketChannel=" + channel + ")", "start");
         final IMessageHandler handler = getMessageHandler(channel);
+        if (handler == null) throw new NullPointerException();
         final ByteBuffer readBuffer = handler.acquireReadBuffer();
         int nRead = 0, nLastRead = 0;
         byte[] msg = null;
@@ -287,7 +304,10 @@ public abstract class AbstractReactor implements IReactor {
             final boolean isEof = nLastRead < 0;
             msg = handler.onMessageRead(isEof);
             readBuffer.compact();
-            if (isEof) getConnectionEventListener(channel).eventConnectionClosed(this, channel);
+            if (isEof) {
+                final IConnectionEventListener connectionEventListener = getConnectionEventListener(channel);
+                if (connectionEventListener != null) connectionEventListener.eventConnectionClosed(this, channel);
+            }
         } finally {
             handler.releaseReadBuffer();
         }
@@ -304,13 +324,14 @@ public abstract class AbstractReactor implements IReactor {
     protected boolean writeMessage(final SocketChannel channel) throws IOException {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "writeMessage(SocketChannel=" + channel + ")", "start");
         final IMessageHandler handler = getMessageHandler(channel);
+        if (handler == null) throw new NullPointerException();
         final Queue<ByteBuffer> queue = handler.acquireWriteQueue();
         try {
             if (queue == null || queue.isEmpty()) return true;
             while (!queue.isEmpty()) {
                 final ByteBuffer msg = queue.peek();
                 int cnt = 0;
-                while (cnt++ < MAX_RETRY_WRITE_CNT && msg.hasRemaining())
+                while (cnt++ < getWriteRetryCount() && msg.hasRemaining())
                     channel.write(msg);
                 if (msg.hasRemaining()) return false;
                 queue.remove();
@@ -341,7 +362,8 @@ public abstract class AbstractReactor implements IReactor {
         final SocketChannel channel = accept(key);
         if (isConnected(channel)) {
             initSocket(channel.socket());
-            getConnectionEventListener(channel).eventConnectionConnected(this, channel);
+            final IConnectionEventListener listener = getConnectionEventListener(channel);
+            if (listener != null) listener.eventConnectionConnected(this, channel);
             handOffAfterAccept(channel);
         }
     }
@@ -356,16 +378,10 @@ public abstract class AbstractReactor implements IReactor {
         if (isConnected(channel)) {
             initSocket(channel.socket());
             key.interestOps(0);
-            getConnectionEventListener(channel).eventConnectionConnected(this, channel);
+            final IConnectionEventListener listener = getConnectionEventListener(channel);
+            if (listener != null) listener.eventConnectionConnected(this, channel);
             handOffAfterConnect(channel);
         }
-    }
-
-    /**
-     * Inits the socket.
-     * @param socket the socket
-     */
-    protected void initSocket(Socket socket) {
     }
 
     /**
@@ -376,9 +392,10 @@ public abstract class AbstractReactor implements IReactor {
     private final void processRead(final SelectionKey key) throws IOException {
         final SocketChannel channel = (SocketChannel) key.channel();
         final byte[] msg = readMessage(channel);
-        final boolean inputIsComplete = (msg != null);
+        final boolean inputIsComplete = msg != null;
         if (inputIsComplete) {
-            getMessageEventListener(channel).eventMessageReceived(msg);
+            final IMessageEventListener listener = getMessageEventListener(channel);
+            if (listener != null) listener.eventMessageReceived(msg);
             handOffAfterRead(channel);
         }
     }
@@ -460,6 +477,16 @@ public abstract class AbstractReactor implements IReactor {
         private Queue<ChangeRequest> changeQueue_ = null;
         /** The is continue_. */
         private volatile boolean isContinue_ = false;
+        /** The name_. */
+        private final String name_;
+
+        /**
+         * Instantiates a new selector dispatcher.
+         * @param name the name
+         */
+        public SelectorDispatcher(final String name) {
+            name_ = name;
+        }
 
         /** {@inheritDoc} */
         @Override public void changeOpts(final SelectableChannel channel, final int opts) {
@@ -520,9 +547,12 @@ public abstract class AbstractReactor implements IReactor {
 
         /** {@inheritDoc} */
         @Override public void startUp() {
-            if (!isContinue()) {
-                isContinue_ = true;
-            }
+            if (!isContinue()) isContinue_ = true;
+        }
+
+        /** {@inheritDoc} */
+        @Override public String toString() {
+            return name_;
         }
 
         /** {@inheritDoc} */
@@ -560,7 +590,7 @@ public abstract class AbstractReactor implements IReactor {
          */
         protected void tearDown() {
             try {
-                selector_.close();
+                if (selector_ != null) selector_.close();
             } catch (final IOException ex) {
                 logger.logp(SEVERE, getClass().getName(), "tearDown()", "", ex);
             }
@@ -586,7 +616,7 @@ public abstract class AbstractReactor implements IReactor {
          * Select one.
          */
         private final void dispatch() {
-            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "dispatch()", "start");
+            if (logger.isLoggable(FINEST)) logger.entering(getClass().getName(), "dispatch()", "start");
             try {
                 final int nKeys = selector_.select(getSelectorTimeOut());
                 if (nKeys <= 0) return;
@@ -603,7 +633,7 @@ public abstract class AbstractReactor implements IReactor {
             } catch (final IOException ex) {
                 logger.logp(SEVERE, getClass().getName(), "dispatch()", "", ex);
             }
-            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "dispatch()", "end");
+            if (logger.isLoggable(FINEST)) logger.exiting(getClass().getName(), "dispatch()", "end");
         }
 
         /**
@@ -611,7 +641,7 @@ public abstract class AbstractReactor implements IReactor {
          */
         private final void dispatchLoop() {
             if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "dispatchLoop()", "start");
-            while (isContinue()) {
+            while (isContinue())
                 try {
                     preDispatch();
                     dispatch();
@@ -619,7 +649,6 @@ public abstract class AbstractReactor implements IReactor {
                 } catch (final Throwable t) {
                     logger.logp(SEVERE, getClass().getName(), "dispatchLoop()", "", t);
                 }
-            }
             if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "dispatchLoop()", "end");
         }
 

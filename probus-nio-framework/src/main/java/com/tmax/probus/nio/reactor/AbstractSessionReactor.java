@@ -58,17 +58,13 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
 
     /** {@inheritDoc} */
     @Override public void init() {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "init");
         channelSessionMap_ = new ConcurrentHashMap<SelectableChannel, ISession>();
         super.init();
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "init");
     }
 
     /** {@inheritDoc} */
     @Override public void putSession(final SocketChannel channel, final ISession session) {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "putSession(SocketChannel=" + channel + ", ISession=" + session + ")", "start");
         channelSessionMap_.put(channel, session);
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "putSession(SocketChannel, ISession)", "end");
     }
 
     /** {@inheritDoc} */
@@ -159,16 +155,16 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
 
     /** {@inheritDoc} */
     @Override protected IConnectionEventListener getConnectionEventListener(SocketChannel channel) {
-        return null;
+        return getSession(channel).getConnectionEventListener();
     }
 
     /** {@inheritDoc} */
     @Override protected IMessageEventListener getMessageEventListener(SocketChannel channel) {
-        return null;
+        return getSession(channel).getMessageEventListener();
     }
 
     /** {@inheritDoc} */
     @Override protected IMessageHandler getMessageHandler(SocketChannel channel) {
-        return null;
+        return getSession(channel).getMessageHandler();
     }
 }
