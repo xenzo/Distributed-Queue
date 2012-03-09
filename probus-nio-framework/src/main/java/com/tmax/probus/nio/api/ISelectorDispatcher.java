@@ -20,7 +20,7 @@ import java.nio.channels.SelectionKey;
 /**
  * selector 처리자 인터페이스.
  */
-public interface ISelectorDispatcher extends ISelector {
+public interface ISelectorDispatcher extends ISelector, Runnable {
     /**
      * Handle accept.
      * @param key the key

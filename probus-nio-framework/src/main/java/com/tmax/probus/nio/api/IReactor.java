@@ -13,11 +13,11 @@
 package com.tmax.probus.nio.api;
 
 /**
- * Reactor 인터페이스
+ * Reactor 인터페이스.
  */
 public interface IReactor extends ISelector {
     /**
-     * Reactor 종료
+     * Reactor 종료.
      */
     void destroy();
 
@@ -40,7 +40,17 @@ public interface IReactor extends ISelector {
     ISelectorDispatcher getReadWriteDispatcher();
 
     /**
-     * Reactor 시동
+     * Reactor 시동.
      */
     void init();
+
+    /**
+     * Start.
+     */
+    void start();
+
+    /**
+     * Stop.
+     */
+    void stop();
 }

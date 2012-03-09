@@ -21,6 +21,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import com.tmax.probus.nio.api.IMessageHandler;
 import com.tmax.probus.nio.api.IMessageReader;
 import com.tmax.probus.nio.api.IReactor;
 import com.tmax.probus.nio.api.ISession;
@@ -29,7 +30,7 @@ import com.tmax.probus.nio.api.ISession;
 /**
  * The Class AbstractSession.
  */
-public abstract class AbstractSession implements ISession {
+public abstract class AbstractSession implements ISession, IMessageHandler {
     /** The write queue_. */
     private final Queue<ByteBuffer> writeQueue_ = new LinkedBlockingQueue<ByteBuffer>();
     /** The read buffer lock_. */
@@ -90,15 +91,10 @@ public abstract class AbstractSession implements ISession {
     }
 
     /** {@inheritDoc} */
-    @Override public boolean onMessageRead(boolean isEof) {
-        boolean result = false;
+    @Override public byte[] onMessageRead(boolean isEof) {
         final ByteBuffer readBuffer = acquireReadBuffer();
         try {
-            final IMessageReader reader = getMessageReader();
-            readBuffer.flip();
-            result = reader.readBuffer(readBuffer, isEof);
-            readBuffer.compact();
-            return result;
+            return getMessageReader().readBuffer(readBuffer, isEof);
         } finally {
             releaseReadBuffer();
         }

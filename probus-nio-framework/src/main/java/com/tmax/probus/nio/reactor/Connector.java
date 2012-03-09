@@ -29,20 +29,25 @@ import com.tmax.probus.nio.api.ISession;
 /**
  * The Class Connector.
  */
-public class Connector extends AbstractReactor implements IConnector {
+public class Connector extends AbstractSessionReactor implements IConnector {
     /** Logger for this class. */
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.nio.reactor");
+    /** The read write processor_. */
     ISelectorDispatcher connectProcessor_, readWriteProcessor_;
 
     /**
-     *
+     * Instantiates a new connector.
      */
     public Connector() {
         setSelectorTimeout(3000);
-        connectProcessor_ = createSelectorProcessor("CONNECT_THREAD");
-        readWriteProcessor_ = createSelectorProcessor("WRITE_THREAD");
+        connectProcessor_ = createSelectorDispatcher();
+        readWriteProcessor_ = createSelectorDispatcher();
     }
 
+    /**
+     * The main method.
+     * @param args the arguments
+     */
     public static void main(final String... args) {
         final Connector connector = new Connector();
         connector.init();

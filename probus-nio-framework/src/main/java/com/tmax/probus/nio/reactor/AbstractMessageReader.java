@@ -34,7 +34,7 @@ public abstract class AbstractMessageReader implements IMessageReader {
     protected int messageLength_ = 0;
 
     /** {@inheritDoc} */
-    @Override public boolean readBuffer(final ByteBuffer buffer, boolean isEof) {
+    @Override public byte[] readBuffer(final ByteBuffer buffer, boolean isEof) {
         if (getHeaderLength() > 0) return readByLength(buffer, isEof);
         else return readUntilEof(buffer, isEof);
     }
@@ -45,7 +45,7 @@ public abstract class AbstractMessageReader implements IMessageReader {
      * @param isEof the is eof
      * @return true, if successful
      */
-    private boolean readUntilEof(ByteBuffer buffer, boolean isEof) {
+    private byte[] readUntilEof(ByteBuffer buffer, boolean isEof) {
         if (message_ == null) {
             messageLength_ = computeMessageLength(null);
             if (messageLength_ > 0) message_ = new byte[messageLength_];
@@ -56,9 +56,9 @@ public abstract class AbstractMessageReader implements IMessageReader {
             System.arraycopy(message_, 0, msg, 0, offset_);
             message_ = null;
             offset_ = 0;
-            return true;
+            return msg;
         }
-        return false;
+        return null;
     }
 
     /**
@@ -67,7 +67,7 @@ public abstract class AbstractMessageReader implements IMessageReader {
      * @param isEof the is eof
      * @return true, if successful
      */
-    private boolean readByLength(final ByteBuffer buffer, boolean isEof) {
+    private byte[] readByLength(final ByteBuffer buffer, boolean isEof) {
         switch (state_) {
         case HEADER:
             if (header_ == null) header_ = new byte[getHeaderLength()];
@@ -90,11 +90,11 @@ public abstract class AbstractMessageReader implements IMessageReader {
                 message_ = null;
                 state_ = State.HEADER;
                 offset_ = 0;
-                return true;
+                return msg;
             }
             break;
         }
-        return false;
+        return null;
     }
 
     /**

@@ -1,5 +1,7 @@
 /*
- * IMessageMaker.java Version 1.0 Feb 15, 2012
+
+ *
+ * IMessageEventListener.java Version 1.0 Mar 9, 2012
  * *
  * Copyright (c) 2010 by Tmax Soft co., Ltd.
  * All rights reserved.
@@ -12,19 +14,12 @@
  */
 package com.tmax.probus.nio.api;
 
-
-import java.nio.ByteBuffer;
-
-
 /**
- * The Interface IMessageReader.
+ *
  */
-public interface IMessageReader {
+public interface IMessageEventListener {
     /**
-     * Read buffer.
-     * @param readBuffer the read buffer
-     * @param isEof
-     * @return 메세지가 끝까지 읽어들여졌는지의 여부를 반환한다.
+     * 하나의 완결된 메세지가 읽어진 경우 호출된다.
      */
-    byte[] readBuffer(ByteBuffer buffer, boolean isEof);
+    void eventMessageReceived(byte[] msg);
 }

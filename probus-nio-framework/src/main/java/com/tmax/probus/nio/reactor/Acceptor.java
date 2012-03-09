@@ -32,7 +32,7 @@ import com.tmax.probus.nio.api.ISession;
 /**
  * The Class Acceptor.
  */
-public class Acceptor extends AbstractReactor implements IAcceptor {
+public class Acceptor extends AbstractSessionReactor implements IAcceptor {
     /** Logger for this class. */
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.nio.reactor");
     /** The read write processor_. */
@@ -45,8 +45,8 @@ public class Acceptor extends AbstractReactor implements IAcceptor {
      */
     public Acceptor() {
         setSelectorTimeout(3000);
-        acceptProcessor_ = createSelectorProcessor("ACCEPT_THREAD");
-        readWriteProcessor_ = createSelectorProcessor("READ_THREAD");
+        acceptProcessor_ = createSelectorDispatcher();
+        readWriteProcessor_ = createSelectorDispatcher();
     }
 
     /**
@@ -73,14 +73,6 @@ public class Acceptor extends AbstractReactor implements IAcceptor {
         } catch (final IOException ex) {
             logger.log(WARNING, "" + ex.getMessage(), ex);
         }
-    }
-
-    /** {@inheritDoc} */
-    @Override public void destroy() {
-        super.destroy();
-        final Map<InetSocketAddress, ServerSocketChannel> map = serverSocketChannelMap_;
-        serverSocketChannelMap_ = null;
-        map.clear();
     }
 
     /** {@inheritDoc} */
