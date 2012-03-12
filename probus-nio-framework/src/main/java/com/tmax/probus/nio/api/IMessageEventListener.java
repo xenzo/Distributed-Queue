@@ -22,4 +22,10 @@ public interface IMessageEventListener {
      * 하나의 완결된 메세지가 읽어진 경우 호출된다.
      */
     void eventMessageReceived(byte[] msg);
+
+    /**
+     * Event message sent.
+     * @param msg the bs
+     */
+    void eventMessageSent(byte[] msg);
 }

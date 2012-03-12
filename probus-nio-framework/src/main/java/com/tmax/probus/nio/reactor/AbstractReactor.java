@@ -334,6 +334,8 @@ public abstract class AbstractReactor implements IReactor {
                 while (cnt++ < getWriteRetryCount() && msg.hasRemaining())
                     channel.write(msg);
                 if (msg.hasRemaining()) return false;
+                //                IMessageEventListener listener = getMessageEventListener(channel);
+                //                if (listener != null) listener.eventMessageSent(msg.array());
                 queue.remove();
             }
         } finally {

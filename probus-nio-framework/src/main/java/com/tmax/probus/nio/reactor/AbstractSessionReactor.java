@@ -78,7 +78,7 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
         final SocketChannel channel = serverChannel.accept();
         channel.configureBlocking(false);
         if (channel != null && channel.finishConnect()) {
-            final ISession session = createSession(serverChannel, channel);
+            final ISession session = createSession(channel);
             putSession(channel, session);
             return channel;
         }
@@ -118,9 +118,9 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
         channel.configureBlocking(false);
         if (localAddr != null) channel.socket().bind(localAddr);
         channel.connect(remoteAddr);
-        session = createSession(null, channel);
+        session = createSession(channel);
         putSession(channel, session);
-        getConnectDispatcher().register(channel, SelectionKey.OP_CONNECT);
+        register(channel, SelectionKey.OP_CONNECT);
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "connect(InetSocketAddress, InetSocketAddress)", "end - return value=" + session);
         return session;
     }
@@ -131,7 +131,7 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
      * @param channel the channel
      * @return the i session
      */
-    protected abstract ISession createSession(final SelectableChannel serverChannel, final SocketChannel channel);
+    protected abstract ISession createSession(final SocketChannel channel);
 
     /** {@inheritDoc} */
     @Override protected void handOffAfterAccept(final SocketChannel channel) {
