@@ -12,19 +12,13 @@
  */
 package com.tmax.probus.nio.api;
 
-
-import java.nio.channels.SocketChannel;
-
+import java.nio.channels.SelectableChannel;
 
 /**
- * The listener interface for receiving IConnectionEvent events. The class that
- * is interested in processing a IConnectionEvent event implements this
- * interface, and the object created with that class is registered with a
- * component using the component's
- * <code>addIConnectionEventListener<code> method. When
- * the IConnectionEvent event occurs, that object's appropriate
- * method is invoked.
- * @see IConnectionEventEvent
+ * The listener interface for receiving IConnectionEvent events. The class that is interested in processing a
+ * IConnectionEvent event implements this interface, and the object created with that class is registered with a
+ * component using the component's <code>addIConnectionEventListener<code> method. When the IConnectionEvent event
+ * occurs, that object's appropriate method is invoked.
  */
 public interface IConnectionEventListener {
     /**
@@ -32,11 +26,11 @@ public interface IConnectionEventListener {
      * @param reactor the reactor
      * @param channel the channel
      */
-    void eventConnectionClosed(IReactor reactor, SocketChannel channel);
+    void eventConnectionClosed(IReactor reactor, SelectableChannel channel);
 
     /**
-     * @param abstractReactor
+     * @param reactor
      * @param channel
      */
-    void eventConnectionConnected(IReactor reactor, SocketChannel channel);
+    void eventConnectionConnected(IReactor reactor, SelectableChannel channel);
 }
