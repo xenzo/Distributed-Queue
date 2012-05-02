@@ -12,8 +12,7 @@
  */
 package com.tmax.probus.nio.api;
 
-
-import java.nio.channels.SocketChannel;
+import java.nio.channels.SelectableChannel;
 
 
 /**
@@ -25,19 +24,19 @@ public interface ISessionManager {
      * @param channel the channel
      * @return the session
      */
-    ISession getSession(SocketChannel channel);
+    ISession getSession(SelectableChannel channel);
 
     /**
      * channel에 해당하는 세션을 저장한다.
      * @param channel the channel
      * @param session the session
      */
-    void putSession(SocketChannel channel, ISession session);
+    void putSession(SelectableChannel channel, ISession session);
 
     /**
      * channel에 해당하는 세션을 제거한다.
      * @param channel the channel
      * @return the i session
      */
-    ISession removeSession(SocketChannel channel);
+    ISession removeSession(SelectableChannel channel);
 }

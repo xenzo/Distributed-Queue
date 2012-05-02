@@ -38,9 +38,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
@@ -74,8 +72,10 @@ public abstract class AbstractReactor implements IReactor {
             getConnectDispatcher().changeOpts(channel, opts);
             break;
         case SelectionKey.OP_READ:
+            getReadDispatcher().changeOpts(channel, opts);
+            break;
         case SelectionKey.OP_WRITE:
-            getReadWriteDispatcher().changeOpts(channel, opts);
+            getWriteDispatcher().changeOpts(channel, opts);
             break;
         }
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "changeOpts(SelectableChannel, int)", "end");
@@ -85,10 +85,12 @@ public abstract class AbstractReactor implements IReactor {
     @Override public void deregister(final SelectableChannel channel) {
         if (logger.isLoggable(FINER))
             logger.entering(getClass().getName(), "deregister(SelectableChannel=" + channel + ")", "start");
-        if (channel instanceof ServerSocketChannel) getAcceptDispatcher().deregister(channel);
-        else {
-            getReadWriteDispatcher().deregister(channel);
+        if (channel instanceof ServerSocketChannel) {
+            getAcceptDispatcher().deregister(channel);
+        } else {
             getConnectDispatcher().deregister(channel);
+            getReadDispatcher().deregister(channel);
+            getWriteDispatcher().deregister(channel);
         }
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "deregister(SelectableChannel)", "end");
     }
@@ -100,7 +102,7 @@ public abstract class AbstractReactor implements IReactor {
                 dispatchExecutor_.shutdown();
                 if (!dispatchExecutor_.awaitTermination(1, TimeUnit.SECONDS)) dispatchExecutor_.shutdownNow();
             } catch (final InterruptedException ex) {
-                logger.log(WARNING, "" + ex.getMessage(), ex);
+                logger.log(WARNING, ex.getMessage(), ex);
             } finally {
                 ExecutorService excutor = dispatchExecutor_;
                 dispatchExecutor_ = null;
@@ -120,8 +122,8 @@ public abstract class AbstractReactor implements IReactor {
                 return t;
             }
         };
-        dispatchExecutor_ = new ThreadPoolExecutor(1, 3, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
-                tf);
+        dispatchExecutor_
+                = new ThreadPoolExecutor(1, 3, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(), tf);
     }
 
     /** {@inheritDoc} */
@@ -137,8 +139,10 @@ public abstract class AbstractReactor implements IReactor {
             getConnectDispatcher().register(channel, opts);
             break;
         case SelectionKey.OP_READ:
+            getReadDispatcher().register(channel, opts);
+            break;
         case SelectionKey.OP_WRITE:
-            getReadWriteDispatcher().register(channel, opts);
+            getWriteDispatcher().register(channel, opts);
             break;
         }
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "register(SelectableChannel, int)", "end");
@@ -157,8 +161,10 @@ public abstract class AbstractReactor implements IReactor {
             getConnectDispatcher().removeOpts(channel, opts);
             break;
         case SelectionKey.OP_READ:
+            getReadDispatcher().removeOpts(channel, opts);
+            break;
         case SelectionKey.OP_WRITE:
-            getReadWriteDispatcher().removeOpts(channel, opts);
+            getWriteDispatcher().removeOpts(channel, opts);
             break;
         }
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "removeOpts(SelectableChannel, int)", "end");
@@ -166,24 +172,18 @@ public abstract class AbstractReactor implements IReactor {
 
     /** {@inheritDoc} */
     @Override public void start() {
-        final Set<ISelectorDispatcher> set = new LinkedHashSet<ISelectorDispatcher>();
-        if (getReadWriteDispatcher() != null) set.add(getReadWriteDispatcher());
-        if (getConnectDispatcher() != null) set.add(getConnectDispatcher());
-        if (getAcceptDispatcher() != null) set.add(getAcceptDispatcher());
-        for (final ISelectorDispatcher dispatcher : set) {
-            dispatcher.startUp();
-            dispatchExecutor_.execute(dispatcher);
-        }
+        if (getWriteDispatcher() != null) getWriteDispatcher().startUp(dispatchExecutor_);
+        if (getReadDispatcher() != null) getReadDispatcher().startUp(dispatchExecutor_);
+        if (getConnectDispatcher() != null) getConnectDispatcher().startUp(dispatchExecutor_);
+        if (getAcceptDispatcher() != null) getAcceptDispatcher().startUp(dispatchExecutor_);
     }
 
     /** {@inheritDoc} */
     @Override public void stop() {
-        final Set<ISelectorDispatcher> set = new LinkedHashSet<ISelectorDispatcher>();
-        if (getReadWriteDispatcher() != null) set.add(getReadWriteDispatcher());
-        if (getConnectDispatcher() != null) set.add(getConnectDispatcher());
-        if (getAcceptDispatcher() != null) set.add(getAcceptDispatcher());
-        for (final ISelectorDispatcher dispatcher : set)
-            dispatcher.shutDown();
+        if (getAcceptDispatcher() != null) getAcceptDispatcher().stop();
+        if (getConnectDispatcher() != null) getConnectDispatcher().stop();
+        if (getReadDispatcher() != null) getReadDispatcher().stop();
+        if (getWriteDispatcher() != null) getWriteDispatcher().stop();
     }
 
     /**
@@ -199,13 +199,16 @@ public abstract class AbstractReactor implements IReactor {
     /**
      * Close channel.
      * @param channel the channel
-     * @throws IOException Signals that an I/O exception has occurred.
      */
     public final void closeChannel(final SelectableChannel channel) {
         if (logger.isLoggable(FINER))
             logger.entering(getClass().getName(), "closeChannel(SelectableChannel=" + channel + ")", "start");
-        if (channel instanceof ServerSocketChannel) getAcceptDispatcher().closeChannel(channel);
-        else if (channel instanceof SocketChannel) getReadWriteDispatcher().closeChannel(channel);
+        if (channel instanceof ServerSocketChannel) {
+            getAcceptDispatcher().closeChannel(channel);
+        } else if (channel instanceof SocketChannel) {
+            getReadDispatcher().closeChannel(channel);
+            getWriteDispatcher().closeChannel(channel);
+        }
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "closeChannel(SelectableChannel)", "end");
     }
 
@@ -389,7 +392,7 @@ public abstract class AbstractReactor implements IReactor {
             if (channel != null) sb.append(", channel=").append(channel);
             return sb.toString();
         }
-    }
+    }//end ChangeRequest
 
     /** The Enum ChangeType. */
     private enum ChangeType {
@@ -405,7 +408,7 @@ public abstract class AbstractReactor implements IReactor {
         REMOVE_OPTS,
         /** The close channel. */
         CLOSE_CHANNEL;
-    }
+    }//end ChangeType
 
     /**
      * The Class SelectorProcessor.
@@ -413,12 +416,12 @@ public abstract class AbstractReactor implements IReactor {
      * <p/>
      * <pre>
      * run
-     * |-setUp
+     * |-init
      * |-dispatchLoop(반복)
      * | |-processBeforeJob
      * | |-dispatch
      * | |-processAfterJob
-     * |-tearDown
+     * |-destroy
      * </pre>
      */
     private class SelectorDispatcher implements ISelectorDispatcher {
@@ -430,6 +433,7 @@ public abstract class AbstractReactor implements IReactor {
         private volatile boolean isContinue_ = false;
         /** The name_. */
         private final String name_;
+        private ExecutorService executor_;
 
         /**
          * Instantiates a new selector dispatcher.
@@ -481,6 +485,7 @@ public abstract class AbstractReactor implements IReactor {
             final SocketChannel channel = (SocketChannel) key.channel();
             byte[] msg = null;
             if ((msg = readMessage(channel)) != null) {
+                removeOpts(channel, SelectionKey.OP_READ);
                 final IMessageEventListener listener = getMessageEventListener(channel);
                 if (listener != null) listener.eventMessageReceived(msg);
                 handOffAfterRead(channel);
@@ -511,23 +516,31 @@ public abstract class AbstractReactor implements IReactor {
         /** {@inheritDoc} */
         @Override public void run() {
             if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "run()", "start");
-            setUp();
+            init();
             dispatchLoop();
-            tearDown();
+            destroy();
             if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "run()", "end");
         }
 
         /** {@inheritDoc} */
-        @Override public void shutDown() {
+        @Override public void stop() {
             if (isContinue()) {
                 isContinue_ = false;
                 wakeupSelector();
             }
         }
 
+        @Override public void start() {
+            if (!isContinue()) {
+                isContinue_ = true;
+                if (executor_ != null) executor_.execute(this);
+            }
+        }
+
         /** {@inheritDoc} */
-        @Override public void startUp() {
-            if (!isContinue()) isContinue_ = true;
+        @Override public void startUp(final ExecutorService dispatchExecutor_) {
+            executor_ = dispatchExecutor_;
+            start();
         }
 
         /** {@inheritDoc} */
@@ -550,22 +563,22 @@ public abstract class AbstractReactor implements IReactor {
         }
 
         /** Sets the up. */
-        protected void setUp() {
+        @Override public void init() {
             if (!isContinue()) throw new IllegalStateException();
             if (changeQueue_ == null) changeQueue_ = new LinkedBlockingQueue<ChangeRequest>();
             try {
                 selector_ = Selector.open();
             } catch (final IOException ex) {
-                logger.logp(SEVERE, getClass().getName(), "setUp()", "", ex);
+                logger.logp(SEVERE, getClass().getName(), "init()", "", ex);
             }
         }
 
         /** Tear down. */
-        protected void tearDown() {
+        @Override public void destroy() {
             try {
                 if (selector_ != null) selector_.close();
             } catch (final IOException ex) {
-                logger.logp(SEVERE, getClass().getName(), "tearDown()", "", ex);
+                logger.logp(SEVERE, getClass().getName(), "destroy()", ex.getMessage(), ex);
             }
             if (changeQueue_ != null) {
                 final Queue<ChangeRequest> queue = changeQueue_;
@@ -660,7 +673,8 @@ public abstract class AbstractReactor implements IReactor {
                     try {
                         request.channel.register(selector_, request.opts);
                     } catch (final ClosedChannelException ex) {
-                        logger.log(WARNING, "" + ex.getMessage(), ex);
+                        logger.logp(WARNING, getClass().getName(), "processChangeRequest()",
+                                "REGESTER:" + ex.getMessage(), ex);
                     }
                     break;
                 case CLOSE_CHANNEL:
@@ -671,7 +685,8 @@ public abstract class AbstractReactor implements IReactor {
                         if (connectionEventListener != null)
                             connectionEventListener.eventConnectionClosed(AbstractReactor.this, request.channel);
                     } catch (IOException ex) {
-                        logger.logp(WARNING, getClass().getName(), "processChangeRequest()", ex.getMessage(), ex);
+                        logger.logp(WARNING, getClass().getName(), "processChangeRequest()",
+                                "CLOSE_CHANNEL" + ex.getMessage(), ex);
                     }
                     //break;
                 case DEREGISTER:

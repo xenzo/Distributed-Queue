@@ -12,14 +12,8 @@
  */
 package com.tmax.probus.nio.api;
 
-/**
- * Reactor 인터페이스.
- */
-public interface IReactor extends ISelector {
-    /**
-     * Reactor 종료.
-     */
-    void destroy();
+/** Reactor 인터페이스. */
+public interface IReactor extends ISelector, ILifeCycle {
 
     /**
      * Accept 이벤트를 처리할 ISelectorProcessor객체를 반환한다.
@@ -34,23 +28,14 @@ public interface IReactor extends ISelector {
     ISelectorDispatcher getConnectDispatcher();
 
     /**
-     * Read/Write 이벤트를 처리할 ISelectorProcessor객체를 반환한다.
+     * Read이벤트를 처리할 ISelectorProcessor객체를 반환한다.
      * @return the read processor
      */
-    ISelectorDispatcher getReadWriteDispatcher();
+    ISelectorDispatcher getReadDispatcher();
 
     /**
-     * Reactor 시동.
+     * Write이벤트를 처리할 ISelectorProcessor객체를 반환한다.
+     * @return the read processor
      */
-    void init();
-
-    /**
-     * Start.
-     */
-    void start();
-
-    /**
-     * Stop.
-     */
-    void stop();
+    ISelectorDispatcher getWriteDispatcher();
 }

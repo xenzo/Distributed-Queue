@@ -52,7 +52,7 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
     }
 
     /** {@inheritDoc} */
-    @Override public ISession getSession(final SocketChannel channel) {
+    @Override public ISession getSession(final SelectableChannel channel) {
         return channelSessionMap_.get(channel);
     }
 
@@ -63,12 +63,12 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
     }
 
     /** {@inheritDoc} */
-    @Override public void putSession(final SocketChannel channel, final ISession session) {
+    @Override public void putSession(final SelectableChannel channel, final ISession session) {
         channelSessionMap_.put(channel, session);
     }
 
     /** {@inheritDoc} */
-    @Override public ISession removeSession(final SocketChannel channel) {
+    @Override public ISession removeSession(final SelectableChannel channel) {
         return channelSessionMap_.remove(channel);
     }
 
@@ -127,7 +127,6 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
 
     /**
      * Creates the session.
-     * @param serverChannel the server channel
      * @param channel the channel
      * @return the i session
      */
@@ -154,8 +153,8 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
     }
 
     /** {@inheritDoc} */
-    @Override protected IConnectionEventListener getConnectionEventListener(SocketChannel channel) {
-        return getSession(channel).getConnectionEventListener();
+    @Override protected IConnectionEventListener getConnectionEventListener(SelectableChannel channel) {
+        return getSession((SocketChannel) channel).getConnectionEventListener();
     }
 
     /** {@inheritDoc} */

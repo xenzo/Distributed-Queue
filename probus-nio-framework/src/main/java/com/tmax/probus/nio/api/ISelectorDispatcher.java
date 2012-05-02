@@ -14,9 +14,10 @@ package com.tmax.probus.nio.api;
 
 import java.io.IOException;
 import java.nio.channels.SelectionKey;
+import java.util.concurrent.ExecutorService;
 
 /** selector 처리자 인터페이스. */
-public interface ISelectorDispatcher extends ISelector, Runnable {
+public interface ISelectorDispatcher extends ISelector, ILifeCycle, Runnable {
     /** Handle accept. */
     void handleAccept(SelectionKey key) throws IOException;
 
@@ -32,11 +33,11 @@ public interface ISelectorDispatcher extends ISelector, Runnable {
     /** Handle write. */
     void handleWrite(SelectionKey key) throws IOException;
 
-    /** Shut down. */
-    void shutDown();
-
-    /** Start. */
-    void startUp();
+    /**
+     * Start.
+     * @param dispatchExecutor_
+     */
+    void startUp(final ExecutorService dispatchExecutor_);
 
     /** Wakeup selector. */
     void wakeupSelector();

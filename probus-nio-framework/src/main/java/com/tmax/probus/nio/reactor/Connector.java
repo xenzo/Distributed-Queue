@@ -87,7 +87,7 @@ public class Connector extends AbstractSessionReactor implements IConnector {
     }
 
     /** {@inheritDoc} */
-    @Override public ISelectorDispatcher getReadWriteDispatcher() {
+    @Override public ISelectorDispatcher getReadDispatcher() {
         return readWriteProcessor_;
     }
 

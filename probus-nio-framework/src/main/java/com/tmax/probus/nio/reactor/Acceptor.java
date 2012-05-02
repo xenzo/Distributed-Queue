@@ -86,7 +86,7 @@ public class Acceptor extends AbstractSessionReactor implements IAcceptor {
     }
 
     /** {@inheritDoc} */
-    @Override public ISelectorDispatcher getReadWriteDispatcher() {
+    @Override public ISelectorDispatcher getReadDispatcher() {
         return readWriteProcessor_;
     }
 
