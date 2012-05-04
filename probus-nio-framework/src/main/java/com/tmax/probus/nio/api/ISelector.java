@@ -21,7 +21,7 @@ public interface ISelector {
      * @param channel the channel
      * @param opts the opts
      */
-    void changeOpts(SelectableChannel channel, int opts);
+    void changeOps(SelectableChannel channel, int opts);
 
     /**
      * Deregister.
@@ -41,14 +41,14 @@ public interface ISelector {
      * @param channel the channel
      * @param opts the opts
      */
-    void removeOpts(SelectableChannel channel, int opts);
+    void removeOps(SelectableChannel channel, int opts);
 
     /**
      * channel의 interestOpts에 추가한다.
      * @param channel the channel
      * @param opts the opts
      */
-    void addOpts(SelectableChannel channel, int opts);
+    void addOps(SelectableChannel channel, int opts);
 
     void closeChannel(SelectableChannel channel);
 }

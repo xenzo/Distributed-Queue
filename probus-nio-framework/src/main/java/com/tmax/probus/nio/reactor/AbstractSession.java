@@ -82,12 +82,12 @@ public abstract class AbstractSession implements ISession, IMessageHandler {
 
     /** {@inheritDoc} */
     @Override public void afterRead(final IReactor reactor) {
-        reactor.changeOpts(channel_, SelectionKey.OP_WRITE);
+        reactor.changeOps(channel_, SelectionKey.OP_WRITE);
     }
 
     /** {@inheritDoc} */
     @Override public void afterWrite(final IReactor reactor) {
-        reactor.changeOpts(channel_, SelectionKey.OP_READ);
+        reactor.changeOps(channel_, SelectionKey.OP_READ);
     }
 
     /** {@inheritDoc} */
@@ -123,7 +123,7 @@ public abstract class AbstractSession implements ISession, IMessageHandler {
         final Queue<ByteBuffer> writeQueue = acquireWriteQueue();
         try {
             writeQueue.add(buffer);
-            reactor_.changeOpts(channel_, SelectionKey.OP_WRITE);
+            reactor_.changeOps(channel_, SelectionKey.OP_WRITE);
         } finally {
             releaseWriteQueue();
         }
