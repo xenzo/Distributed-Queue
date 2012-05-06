@@ -11,8 +11,6 @@
  * entered into with Tmax Soft co., Ltd.
  */
 package com.tmax.probus.nio.reactor;
-
-
 /*
 * AbstractReactor.java Version 1.0 Feb 24, 2012
 * *
@@ -25,34 +23,19 @@ package com.tmax.probus.nio.reactor;
 * and shall use it only in accordance with the terms of the license agreement
 * entered into with Tmax Soft co., Ltd.
 */
-import static java.util.logging.Level.*;
+
+import com.tmax.probus.nio.api.*;
 
 import java.io.IOException;
 import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.nio.channels.CancelledKeyException;
-import java.nio.channels.ClosedChannelException;
-import java.nio.channels.ClosedSelectorException;
-import java.nio.channels.SelectableChannel;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
+import java.nio.channels.*;
 import java.util.Iterator;
 import java.util.Queue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.logging.Logger;
 
-import com.tmax.probus.nio.api.IConnectionEventListener;
-import com.tmax.probus.nio.api.IMessageEventListener;
-import com.tmax.probus.nio.api.IMessageHandler;
-import com.tmax.probus.nio.api.IReactor;
-import com.tmax.probus.nio.api.ISelectorDispatcher;
-
+import static java.util.logging.Level.*;
 
 /** The Class AbstractReactor. */
 public abstract class AbstractReactor implements IReactor {
@@ -60,12 +43,12 @@ public abstract class AbstractReactor implements IReactor {
     protected final transient Logger logger = Logger.getLogger("com.tmax.probus.nio.reactor");
     /** The dispatcher executor_. */
     private ExecutorService dispatchExecutor_;
-    private static final int FULL_OPS = SelectionKey.OP_ACCEPT | SelectionKey.OP_CONNECT | SelectionKey.OP_READ | SelectionKey.OP_WRITE;
 
     /** {@inheritDoc} */
     @Override public void addOps(final SelectableChannel channel, final int ops) {
         if (logger.isLoggable(FINER))
-            logger.entering(getClass().getName(), "addOps(SelectableChannel=" + channel + ", int=" + ops + ")", "start");
+            logger.entering(getClass().getName(), "addOps(SelectableChannel=" + channel + ", int=" + ops + ")",
+                    "start");
         if ((ops & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT && getAcceptDispatcher() != null)
             getAcceptDispatcher().addOps(channel, SelectionKey.OP_ACCEPT);
         if ((ops & SelectionKey.OP_CONNECT) == SelectionKey.OP_CONNECT && getConnectDispatcher() != null)
@@ -80,9 +63,10 @@ public abstract class AbstractReactor implements IReactor {
     /** {@inheritDoc} */
     @Override public void changeOps(final SelectableChannel channel, final int ops) {
         if (logger.isLoggable(FINER))
-            logger.entering(getClass().getName(), "changeOps(SelectableChannel=" + channel + ", int=" + ops + ")", "start");
-        addOps(channel, ops);
-        removeOps(channel, FULL_OPS ^ ops);
+            logger.entering(getClass().getName(), "changeOps(SelectableChannel=" + channel + ", int=" + ops + ")",
+                    "start");
+        addOps(channel, channel.validOps() & ops);
+        removeOps(channel, channel.validOps() ^ ops);
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "changeOps(SelectableChannel, int)", "end");
     }
 
@@ -141,14 +125,15 @@ public abstract class AbstractReactor implements IReactor {
                 return t;
             }
         };
-        dispatchExecutor_ = new ThreadPoolExecutor(1, 3, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(), tf);
+        dispatchExecutor_ = new ThreadPoolExecutor(1, 3, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
+                tf);
     }
 
     /** {@inheritDoc} */
     @Override public void register(final SelectableChannel channel, final int ops) {
         if (logger.isLoggable(FINER))
             logger.entering(getClass().getName(), "register(SelectableChannel=" + channel + ", int=" + ops + ")",
-                "start");
+                    "start");
         if ((ops & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT && getAcceptDispatcher() != null)
             getAcceptDispatcher().register(channel, SelectionKey.OP_ACCEPT);
         if ((ops & SelectionKey.OP_CONNECT) == SelectionKey.OP_CONNECT && getConnectDispatcher() != null)
@@ -164,7 +149,7 @@ public abstract class AbstractReactor implements IReactor {
     @Override public void removeOps(final SelectableChannel channel, final int ops) {
         if (logger.isLoggable(FINER))
             logger.entering(getClass().getName(), "removeOps(SelectableChannel=" + channel + ", int=" + ops + ")",
-                "start");
+                    "start");
         if ((ops & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT && getAcceptDispatcher() != null)
             getAcceptDispatcher().removeOps(channel, SelectionKey.OP_ACCEPT);
         if ((ops & SelectionKey.OP_CONNECT) == SelectionKey.OP_CONNECT && getConnectDispatcher() != null)
@@ -297,7 +282,7 @@ public abstract class AbstractReactor implements IReactor {
             while (readBuffer.hasRemaining() && (nLastRead = channel.read(readBuffer)) > 0)
                 nRead += nLastRead;
             if (logger.isLoggable(FINE)) logger.logp(FINE, getClass().getName(), "readMessage(SocketChannel)",
-                "nRead=" + nRead + ", nLastRead=" + nLastRead);
+                    "nRead=" + nRead + ", nLastRead=" + nLastRead);
             readBuffer.flip();
             final boolean isEof = nLastRead < 0;
             msg = handler.onMessageRead(isEof);
@@ -404,7 +389,7 @@ public abstract class AbstractReactor implements IReactor {
      * The Class SelectorProcessor.
      * <p/>
      * <p/>
-     *
+     * <p/>
      * <pre>
      * run
      * |-init
@@ -437,13 +422,17 @@ public abstract class AbstractReactor implements IReactor {
 
         /** {@inheritDoc} */
         @Override public void addOps(final SelectableChannel channel, final int ops) {
-            if ((channel.keyFor(selector_).interestOps() ^ ops) != 0)
+            final SelectionKey key = channel.keyFor(selector_);
+            if (key == null) register(channel, ops);
+            else if ((ops ^ (key.interestOps() & ops)) != 0)
                 addChangeRequest(new ChangeRequest(ChangeType.ADD_OPS, channel, ops));
         }
 
         /** {@inheritDoc} */
         @Override public void changeOps(final SelectableChannel channel, final int ops) {
-            if (channel.keyFor(selector_).interestOps() != ops)
+            final SelectionKey key = channel.keyFor(selector_);
+            if (key == null) register(channel, ops);
+            else if (key.interestOps() != ops)
                 addChangeRequest(new ChangeRequest(ChangeType.CHANGE_OPS, channel, ops));
         }
 
@@ -527,13 +516,14 @@ public abstract class AbstractReactor implements IReactor {
 
         /** {@inheritDoc} */
         @Override public void register(final SelectableChannel channel, final int ops) {
-            if (channel.keyFor(selector_) != null) addChangeRequest(new ChangeRequest(ChangeType.ADD_OPS, channel, ops));
+            if (channel.keyFor(selector_) != null) addOps(channel, ops);
             else addChangeRequest(new ChangeRequest(ChangeType.REGISTER, channel, ops));
         }
 
         /** {@inheritDoc} */
         @Override public void removeOps(final SelectableChannel channel, final int ops) {
-            if ((channel.keyFor(selector_).interestOps() & ops) != 0)
+            final SelectionKey key = channel.keyFor(selector_);
+            if (key != null && (key.interestOps() & ops) != 0)
                 addChangeRequest(new ChangeRequest(ChangeType.REMOVE_OPS, channel, ops));
         }
 
@@ -658,7 +648,7 @@ public abstract class AbstractReactor implements IReactor {
             while ((request = changeQueue_.poll()) != null) {
                 final SelectionKey key = request.channel.keyFor(selector_);
                 if (logger.isLoggable(FINEST)) logger.logp(FINEST, getClass().getName(), "processChangeRequest()",
-                    "change request(" + request + "), selection key(" + key + ")");
+                        "change request(" + request + "), selection key(" + key + ")");
                 switch (request.type) {
                 case ADD_OPS:
                     if (key != null && key.isValid()) key.interestOps(key.interestOps() | request.ops);
@@ -667,25 +657,27 @@ public abstract class AbstractReactor implements IReactor {
                     if (key != null && key.isValid()) key.interestOps(request.ops);
                     break;
                 case REMOVE_OPS:
-                    if (key != null && key.isValid()) key.interestOps(key.interestOps() ^ (key.interestOps() & request.ops));
+                    if (key != null && key.isValid())
+                        key.interestOps(key.interestOps() ^ (key.interestOps() & request.ops));
                     break;
                 case REGISTER:
                     try {
                         request.channel.register(selector_, request.ops);
                     } catch (final ClosedChannelException ex) {
                         logger.logp(WARNING, getClass().getName(), "processChangeRequest()",
-                            "REGESTER:" + ex.getMessage(), ex);
+                                "REGESTER:" + ex.getMessage(), ex);
                     }
                     break;
                 case CLOSE_CHANNEL:
                     try {
                         request.channel.close();
-                        final IConnectionEventListener connectionEventListener = getConnectionEventListener(request.channel);
+                        final IConnectionEventListener connectionEventListener = getConnectionEventListener(
+                                request.channel);
                         if (connectionEventListener != null)
                             connectionEventListener.eventConnectionClosed(AbstractReactor.this, request.channel);
                     } catch (final IOException ex) {
                         logger.logp(WARNING, getClass().getName(), "processChangeRequest()",
-                            "CLOSE_CHANNEL" + ex.getMessage(), ex);
+                                "CLOSE_CHANNEL" + ex.getMessage(), ex);
                     }
                     //break;
                 case DEREGISTER:
