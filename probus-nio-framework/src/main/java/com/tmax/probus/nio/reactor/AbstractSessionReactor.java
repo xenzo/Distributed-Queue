@@ -77,7 +77,7 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
         final ServerSocketChannel serverChannel = (ServerSocketChannel) key.channel();
         final SocketChannel channel = serverChannel.accept();
         channel.configureBlocking(false);
-        if (channel != null && channel.finishConnect()) {
+        if (isConnected(channel)) {
             final ISession session = createSession(channel);
             putSession(channel, session);
             return channel;

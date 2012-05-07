@@ -17,7 +17,6 @@ import static java.util.logging.Level.*;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.channels.SelectableChannel;
 import java.nio.channels.SocketChannel;
 import java.util.logging.Logger;
 
@@ -39,9 +38,8 @@ public class Connector extends AbstractSessionReactor implements IConnector {
      * Instantiates a new connector.
      */
     public Connector() {
-        setSelectorTimeout(3000);
-        connectProcessor_ = createSelectorDispatcher();
-        readWriteProcessor_ = createSelectorDispatcher();
+        connectProcessor_ = createSelectorDispatcher("");
+        readWriteProcessor_ = createSelectorDispatcher("");
     }
 
     /**
@@ -92,7 +90,15 @@ public class Connector extends AbstractSessionReactor implements IConnector {
     }
 
     /** {@inheritDoc} */
-    @Override protected ISession createSession(final SelectableChannel serverChannel, final SocketChannel channel) {
+    @Override public ISelectorDispatcher getWriteDispatcher() {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "getWriteDispatcher");
+        // XXX must do something
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "getWriteDispatcher");
+        return null;
+    }
+
+    /** {@inheritDoc} */
+    @Override protected ISession createSession(SocketChannel channel) {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "createSession");
         // XXX must do something
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "createSession");

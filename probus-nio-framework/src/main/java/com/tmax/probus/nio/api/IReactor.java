@@ -14,7 +14,6 @@ package com.tmax.probus.nio.api;
 
 /** Reactor 인터페이스. */
 public interface IReactor extends ISelector, ILifeCycle {
-
     /**
      * Accept 이벤트를 처리할 ISelectorProcessor객체를 반환한다.
      * @return the accept processor

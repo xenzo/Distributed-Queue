@@ -17,7 +17,6 @@ import static java.util.logging.Level.*;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.channels.SelectableChannel;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Map;
@@ -44,9 +43,8 @@ public class Acceptor extends AbstractSessionReactor implements IAcceptor {
      * Instantiates a new acceptor.
      */
     public Acceptor() {
-        setSelectorTimeout(3000);
-        acceptProcessor_ = createSelectorDispatcher();
-        readWriteProcessor_ = createSelectorDispatcher();
+        acceptProcessor_ = createSelectorDispatcher("");
+        readWriteProcessor_ = createSelectorDispatcher("");
     }
 
     /**
@@ -68,11 +66,7 @@ public class Acceptor extends AbstractSessionReactor implements IAcceptor {
     @Override public void closeServer(final String ip, final int port) {
         final InetSocketAddress localAddr = new InetSocketAddress(ip, port);
         final ServerSocketChannel serverSocketChannel = serverSocketChannelMap_.remove(localAddr);
-        try {
-            if (serverSocketChannel != null) closeChannel(serverSocketChannel);
-        } catch (final IOException ex) {
-            logger.log(WARNING, "" + ex.getMessage(), ex);
-        }
+        if (serverSocketChannel != null) closeChannel(serverSocketChannel);
     }
 
     /** {@inheritDoc} */
@@ -107,7 +101,15 @@ public class Acceptor extends AbstractSessionReactor implements IAcceptor {
     }
 
     /** {@inheritDoc} */
-    @Override protected ISession createSession(final SelectableChannel serverChannel, final SocketChannel channel) {
+    @Override public ISelectorDispatcher getWriteDispatcher() {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "getWriteDispatcher");
+        // XXX must do something
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "getWriteDispatcher");
+        return null;
+    }
+
+    /** {@inheritDoc} */
+    @Override protected ISession createSession(SocketChannel channel) {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "createSession");
         // XXX must do something
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "createSession");

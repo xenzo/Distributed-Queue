@@ -35,7 +35,7 @@ public abstract class AbstractMessageReader implements IMessageReader {
 
     /** {@inheritDoc} */
     @Override public byte[] readBuffer(final ByteBuffer buffer, boolean isEof) {
-        if (getHeaderLength() > 0) return readByLength(buffer, isEof);
+        if (getHeaderLength() >= 0) return readByLength(buffer, isEof);
         else return readUntilEof(buffer, isEof);
     }
 
@@ -46,19 +46,38 @@ public abstract class AbstractMessageReader implements IMessageReader {
      * @return true, if successful
      */
     private byte[] readUntilEof(ByteBuffer buffer, boolean isEof) {
+        int len = buffer.remaining();
+        offset_ += len;
         if (message_ == null) {
-            messageLength_ = computeMessageLength(null);
-            if (messageLength_ > 0) message_ = new byte[messageLength_];
-        }
-        offset_ += copyBuffer2ByteArray(buffer, message_, offset_, messageLength_);
-        if (isEof || offset_ == messageLength_) {
+            message_ = new byte[len];
+            buffer.get(message_);
+        } else {
             byte[] msg = new byte[offset_];
             System.arraycopy(message_, 0, msg, 0, offset_);
+            buffer.get(msg, offset_, len);
+            message_ = msg;
+        }
+        if (isEof) {
+            byte[] msg = message_;
             message_ = null;
             offset_ = 0;
             return msg;
         }
         return null;
+        /*
+         if (message_ == null) {
+            messageLength_ = computeMessageLength(null);
+            if (messageLength_ > 0) message_ = new byte[messageLength_];
+         }
+         offset_ += copyBuffer2ByteArray(buffer, message_, offset_, messageLength_);
+         if (isEof || offset_ == messageLength_) {
+            byte[] msg = new byte[offset_];
+            System.arraycopy(message_, 0, msg, 0, offset_);
+            message_ = null;
+            offset_ = 0;
+            return msg;
+         }
+         return null;*/
     }
 
     /**

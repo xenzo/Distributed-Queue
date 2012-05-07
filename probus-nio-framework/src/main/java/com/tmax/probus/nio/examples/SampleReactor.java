@@ -22,7 +22,6 @@ import java.util.logging.Logger;
 import com.tmax.probus.nio.api.IConnectionEventListener;
 import com.tmax.probus.nio.api.IMessageEventListener;
 import com.tmax.probus.nio.api.IMessageHandler;
-import com.tmax.probus.nio.api.ISelectorDispatcher;
 import com.tmax.probus.nio.reactor.AbstractReactor;
 
 
@@ -34,45 +33,6 @@ public class SampleReactor extends AbstractReactor {
      * Logger for this class
      */
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.nio.examples");
-
-    /** {@inheritDoc} */
-    @Override public ISelectorDispatcher getAcceptDispatcher() {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "getAcceptDispatcher");
-        // XXX must do something
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "getAcceptDispatcher");
-        return null;
-    }
-
-    /** {@inheritDoc} */
-    @Override public ISelectorDispatcher getConnectDispatcher() {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "getConnectDispatcher");
-        // XXX must do something
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "getConnectDispatcher");
-        return null;
-    }
-
-    /** {@inheritDoc} */
-    @Override public ISelectorDispatcher getReadDispatcher() {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "getReadDispatcher");
-        // XXX must do something
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "getReadDispatcher");
-        return null;
-    }
-
-    /** {@inheritDoc} */
-    @Override public ISelectorDispatcher getWriteDispatcher() {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "getWriteDispatcher");
-        // XXX must do something
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "getWriteDispatcher");
-        return null;
-    }
-
-    /** {@inheritDoc} */
-    @Override public void addOps(SelectableChannel channel, int opts) {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "addOpts");
-        // XXX must do something
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "addOpts");
-    }
 
     /** {@inheritDoc} */
     @Override protected IConnectionEventListener getConnectionEventListener(SelectableChannel channel) {
