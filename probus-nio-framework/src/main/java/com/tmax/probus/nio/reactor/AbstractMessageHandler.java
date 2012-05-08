@@ -17,6 +17,7 @@ import static java.util.logging.Level.*;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -55,7 +56,7 @@ public abstract class AbstractMessageHandler implements IMessageHandler {
     /** The message length */
     protected int messageLength_ = 0;
     /** The reactor */
-    private final IReactor reactor_;
+    protected final IReactor reactor_;
 
     /**
      * Instantiates a new abstract message handler.
@@ -78,7 +79,7 @@ public abstract class AbstractMessageHandler implements IMessageHandler {
                 logger.logp(FINEST, getClass().getName(), "read()", "nRead=" + nRead + ", nLastRead=" + nLastRead);
             readBuffer.flip();
             final boolean isEof = nLastRead < 0;
-            msg = readBuffer(readBuffer, isEof);
+            msg = copyBufferToMessage(readBuffer, isEof);
             readBuffer.compact();
             if (isEof) reactor_.closeChannel(channel_);
         } finally {
@@ -89,16 +90,13 @@ public abstract class AbstractMessageHandler implements IMessageHandler {
         return msg;
     }
 
-    /**
-     * {@inheritDoc}
-     * @throws IOException
-     */
+    /** {@inheritDoc} */
     @Override public boolean send() throws IOException {
         final Queue<ByteBuffer> queue = acquireWriteQueue();
         try {
             if (queue == null || queue.isEmpty()) return true;
-            while (!queue.isEmpty()) {
-                final ByteBuffer msg = queue.peek();
+            ByteBuffer msg = null;
+            while ((msg = queue.peek()) != null) {
                 int cnt = 0;
                 while (cnt++ < getWriteRetryCount() && msg.hasRemaining())
                     channel_.write(msg);
@@ -122,10 +120,31 @@ public abstract class AbstractMessageHandler implements IMessageHandler {
         final Queue<ByteBuffer> writeQueue = acquireWriteQueue();
         try {
             writeQueue.add(buffer);
-            //            reactor_.changeOps(channel_, SelectionKey.OP_WRITE);
+            reactor_.changeOps(channel_, SelectionKey.OP_WRITE);
         } finally {
             releaseWriteQueue();
         }
+    }
+
+    /**
+     * Read용 ByteBuffer를 획득한다.
+     * @return the byte buffer
+     */
+    protected ByteBuffer acquireReadBuffer() {
+        final Lock lock = readBufferLock_;
+        lock.lock();
+        if (readBuffer_ == null) readBuffer_ = createReadBuffer();
+        return readBuffer_;
+    }
+
+    /**
+     * Write 메세지를 저장할 Queue를 획득한다.
+     * @return the queue
+     */
+    protected Queue<ByteBuffer> acquireWriteQueue() {
+        final Lock lock = writeQueueLock_;
+        lock.lock();
+        return writeQueue_;
     }
 
     /**
@@ -136,15 +155,16 @@ public abstract class AbstractMessageHandler implements IMessageHandler {
     abstract protected int computeMessageLength(byte[] header);
 
     /**
-     * ByteBuffer의 데이터를 읽어들여 byte 배열에 복사한다.
+     * ByteBuffer의 데이터를 읽어들여 byte 배열에 복사한다.<br/>
+     * 복사할 길이가 0이하일 경우 복사 없이 0을 리턴한다.
      * @param src 읽어들일 버퍼
      * @param tar 기입할 byte 배열
-     * @param offset the offset
-     * @param length the length
-     * @return 복사한 길이를 반환한다.
+     * @param offset 복사할 위치
+     * @param length 복사할 길이
+     * @return 복사한 길이를 반환한다. 복사할 것이 없는 경우 0 반환
      */
     protected final int copyBuffer2ByteArray(final ByteBuffer src, final byte[] tar, final int offset, final int length) {
-        final int len = Math.min(length - offset, src.remaining());
+        final int len = Math.min(length, src.remaining());
         if (len <= 0) return 0;
         src.get(tar, offset, len);
         return len;
@@ -170,6 +190,14 @@ public abstract class AbstractMessageHandler implements IMessageHandler {
     }
 
     /**
+     * Gets the channel.
+     * @return the channel
+     */
+    public final SocketChannel getChannel() {
+        return channel_;
+    }
+
+    /**
      * 헤더의 길이를 반환해야 한다.
      * @return 헤더의 길이
      */
@@ -184,27 +212,22 @@ public abstract class AbstractMessageHandler implements IMessageHandler {
     }
 
     /**
-     * Read용 ByteBuffer를 획득한다.
-     * @return the byte buffer
+     * Read버퍼를 반환한다.
      */
-    private ByteBuffer acquireReadBuffer() {
+    protected void releaseReadBuffer() {
         final Lock lock = readBufferLock_;
-        lock.lock();
-        if (readBuffer_ == null) readBuffer_ = createReadBuffer();
-        return readBuffer_;
+        lock.unlock();
     }
 
     /**
-     * Write 메세지를 저장할 Queue를 획득한다.
-     * @return the queue
+     * Write메세지 용 큐를 반환한다.
      */
-    private Queue<ByteBuffer> acquireWriteQueue() {
+    protected void releaseWriteQueue() {
         final Lock lock = writeQueueLock_;
-        lock.lock();
-        return writeQueue_;
+        lock.unlock();
     }
 
-    private byte[] readBuffer(final ByteBuffer buffer, final boolean isEof) {
+    private byte[] copyBufferToMessage(final ByteBuffer buffer, final boolean isEof) {
         if (getHeaderLength() >= 0) return readByLength(buffer, isEof);
         else return readUntilEof(buffer, isEof);
     }
@@ -219,7 +242,7 @@ public abstract class AbstractMessageHandler implements IMessageHandler {
         switch (state_) {
         case HEADER:
             if (header_ == null) header_ = new byte[getHeaderLength()];
-            offset_ += copyBuffer2ByteArray(buffer, header_, offset_, getHeaderLength());
+            offset_ += copyBuffer2ByteArray(buffer, header_, offset_, getHeaderLength() - offset_);
             if (getHeaderLength() == offset_) {
                 messageLength_ = computeMessageLength(header_);
                 message_ = new byte[messageLength_];
@@ -228,7 +251,7 @@ public abstract class AbstractMessageHandler implements IMessageHandler {
             }
             if (messageLength_ > offset_ && !buffer.hasRemaining()) break;
         case BODY:
-            offset_ += copyBuffer2ByteArray(buffer, message_, offset_, messageLength_);
+            offset_ += copyBuffer2ByteArray(buffer, message_, offset_, messageLength_ - offset_);
             if (offset_ == messageLength_ || isEof) {
                 byte[] msg = null;
                 if (isEof) {
@@ -253,60 +276,34 @@ public abstract class AbstractMessageHandler implements IMessageHandler {
      */
     private byte[] readUntilEof(final ByteBuffer buffer, final boolean isEof) {
         final int len = buffer.remaining();
-        if (len < 1) return null;
-        if (message_ == null) {
-            message_ = new byte[len];
-            buffer.get(message_);
-        } else {
-            final byte[] msg = new byte[offset_ + len];
-            System.arraycopy(message_, 0, msg, 0, offset_);
-            buffer.get(msg, offset_, len);
-            offset_ += len;
-            message_ = msg;
+        if (len < 1) {
+            if (isEof) return getMessageAndCleanUp();
+            return null;
         }
-        if (isEof) {
-            final byte[] msg = message_;
-            message_ = null;
-            offset_ = 0;
-            return msg;
-        }
+        final byte[] data = new byte[offset_ + len];
+        System.arraycopy(message_, 0, data, 0, offset_);
+        buffer.get(data, offset_, len);
+        offset_ += len;
+        message_ = data;
+        if (isEof) return getMessageAndCleanUp();
         return null;
-        /*
-         if (message_ == null) {
-            messageLength_ = computeMessageLength(null);
-            if (messageLength_ > 0) message_ = new byte[messageLength_];
-         }
-         offset_ += copyBuffer2ByteArray(buffer, message_, offset_, messageLength_);
-         if (isEof || offset_ == messageLength_) {
-            byte[] msg = new byte[offset_];
-            System.arraycopy(message_, 0, msg, 0, offset_);
-            message_ = null;
-            offset_ = 0;
-            return msg;
-         }
-         return null;*/
     }
 
     /**
-     * Read버퍼를 반환한다.
+     * Gets the message and clean up.
+     * @return the message and clean up
      */
-    private void releaseReadBuffer() {
-        final Lock lock = readBufferLock_;
-        lock.unlock();
-    }
-
-    /**
-     * Write메세지 용 큐를 반환한다.
-     */
-    private void releaseWriteQueue() {
-        final Lock lock = writeQueueLock_;
-        lock.unlock();
+    private byte[] getMessageAndCleanUp() {
+        final byte[] msg = message_;
+        message_ = null;
+        offset_ = 0;
+        return msg;
     }
 
     /**
      * 메세지 처리 단계를 나타내는 enum.
      */
-    private enum State {
+    protected enum State {
         /** The HEADER. */
         HEADER,
         /** The BODY. */
