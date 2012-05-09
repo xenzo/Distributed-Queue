@@ -36,12 +36,12 @@ public abstract class AbstractSession extends AbstractMessageHandler implements 
 
     /** {@inheritDoc} */
     @Override public void afterAccept(final IReactor reactor) {
-        reactor.register(getChannel(), SelectionKey.OP_READ);
+        reactor.changeOps(getChannel(), SelectionKey.OP_READ);
     }
 
     /** {@inheritDoc} */
     @Override public void afterConnect(final IReactor reactor) {
-        reactor.register(getChannel(), SelectionKey.OP_WRITE);
+        reactor.changeOps(getChannel(), SelectionKey.OP_WRITE);
     }
 
     /** {@inheritDoc} */

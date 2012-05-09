@@ -17,6 +17,7 @@ import static java.util.logging.Level.*;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.channels.SelectableChannel;
 import java.nio.channels.SocketChannel;
 import java.util.logging.Logger;
 
@@ -103,5 +104,26 @@ public class Connector extends AbstractSessionReactor implements IConnector {
         // XXX must do something
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "createSession");
         return null;
+    }
+
+    /** {@inheritDoc} */
+    @Override protected void onConnectionClosed(SelectableChannel channel) {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "onConnectionClosed");
+        // XXX must do something
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "onConnectionClosed");
+    }
+
+    /** {@inheritDoc} */
+    @Override protected void onConnectionConnected(SelectableChannel channel) {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "onConnectionConnected");
+        // XXX must do something
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "onConnectionConnected");
+    }
+
+    /** {@inheritDoc} */
+    @Override protected void onMessageReceived(SocketChannel channel, byte[] msg) {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "onMessageReceived");
+        // XXX must do something
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "onMessageReceived");
     }
 }

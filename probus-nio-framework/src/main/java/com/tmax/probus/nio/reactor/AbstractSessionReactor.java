@@ -152,13 +152,11 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
         getSession(channel).afterWrite(this);
     }
 
-    /** {@inheritDoc} */
-    @Override protected IConnectionEventListener getConnectionEventListener(SelectableChannel channel) {
+    protected IConnectionEventListener getConnectionEventListener(SelectableChannel channel) {
         return getSession((SocketChannel) channel).getConnectionEventListener();
     }
 
-    /** {@inheritDoc} */
-    @Override protected IMessageEventListener getMessageEventListener(SocketChannel channel) {
+    protected IMessageEventListener getMessageEventListener(SocketChannel channel) {
         return getSession(channel).getMessageEventListener();
     }
 

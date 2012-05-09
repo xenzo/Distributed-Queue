@@ -19,8 +19,6 @@ import java.nio.channels.SelectableChannel;
 import java.nio.channels.SocketChannel;
 import java.util.logging.Logger;
 
-import com.tmax.probus.nio.api.IConnectionEventListener;
-import com.tmax.probus.nio.api.IMessageEventListener;
 import com.tmax.probus.nio.api.IMessageHandler;
 import com.tmax.probus.nio.reactor.AbstractReactor;
 
@@ -33,22 +31,6 @@ public class SampleReactor extends AbstractReactor {
      * Logger for this class
      */
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.nio.examples");
-
-    /** {@inheritDoc} */
-    @Override protected IConnectionEventListener getConnectionEventListener(SelectableChannel channel) {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "getConnectionEventListener");
-        // XXX must do something
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "getConnectionEventListener");
-        return null;
-    }
-
-    /** {@inheritDoc} */
-    @Override protected IMessageEventListener getMessageEventListener(SocketChannel channel) {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "getMessageEventListener");
-        // XXX must do something
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "getMessageEventListener");
-        return null;
-    }
 
     /** {@inheritDoc} */
     @Override protected IMessageHandler getMessageHandler(SocketChannel channel) {
@@ -84,5 +66,26 @@ public class SampleReactor extends AbstractReactor {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "handOffAfterWrite");
         // XXX must do something
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "handOffAfterWrite");
+    }
+
+    /** {@inheritDoc} */
+    @Override protected void onConnectionClosed(SelectableChannel channel) {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "onConnectionClosed");
+        // XXX must do something
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "onConnectionClosed");
+    }
+
+    /** {@inheritDoc} */
+    @Override protected void onConnectionConnected(SelectableChannel channel) {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "onConnectionConnected");
+        // XXX must do something
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "onConnectionConnected");
+    }
+
+    /** {@inheritDoc} */
+    @Override protected void onMessageReceived(SocketChannel channel, byte[] msg) {
+        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "onMessageReceived");
+        // XXX must do something
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "onMessageReceived");
     }
 }

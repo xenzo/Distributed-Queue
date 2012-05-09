@@ -45,8 +45,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
-import com.tmax.probus.nio.api.IConnectionEventListener;
-import com.tmax.probus.nio.api.IMessageEventListener;
 import com.tmax.probus.nio.api.IMessageHandler;
 import com.tmax.probus.nio.api.IReactor;
 import com.tmax.probus.nio.api.ISelectorDispatcher;
@@ -233,20 +231,6 @@ public abstract class AbstractReactor implements IReactor {
     }
 
     /**
-     * Gets the connection event listener.
-     * @param channel the channel
-     * @return the connection event listener
-     */
-    abstract protected IConnectionEventListener getConnectionEventListener(SelectableChannel channel);
-
-    /**
-     * Gets the message event listener.
-     * @param channel the channel
-     * @return the message event listener
-     */
-    abstract protected IMessageEventListener getMessageEventListener(SocketChannel channel);
-
-    /**
      * Gets the message handler.
      * @param channel the channel
      * @return the message handler
@@ -301,6 +285,25 @@ public abstract class AbstractReactor implements IReactor {
     protected final boolean isConnected(final SocketChannel channel) throws IOException {
         return channel != null && channel.finishConnect();
     }
+
+    /**
+     * On connection closed.
+     * @param channel the channel
+     */
+    abstract protected void onConnectionClosed(final SelectableChannel channel);
+
+    /**
+     * On connection connected.
+     * @param channel the channel
+     */
+    abstract protected void onConnectionConnected(final SelectableChannel channel);
+
+    /**
+     * On message received.
+     * @param channel the channel
+     * @param msg the msg
+     */
+    abstract protected void onMessageReceived(final SocketChannel channel, final byte[] msg);
 
     /**
      * channel로 부터 데이터를 읽는다.
@@ -464,8 +467,7 @@ public abstract class AbstractReactor implements IReactor {
             final SocketChannel channel = accept(key);
             if (isConnected(channel)) {
                 initSocket(channel.socket());
-                final IConnectionEventListener listener = getConnectionEventListener(channel);
-                if (listener != null) listener.eventConnectionConnected(AbstractReactor.this, channel);
+                onConnectionConnected(channel);
                 handOffAfterAccept(channel);
             }
         }
@@ -476,8 +478,7 @@ public abstract class AbstractReactor implements IReactor {
             if (isConnected(channel)) {
                 removeOps(channel, SelectionKey.OP_CONNECT);
                 initSocket(channel.socket());
-                final IConnectionEventListener listener = getConnectionEventListener(channel);
-                if (listener != null) listener.eventConnectionConnected(AbstractReactor.this, channel);
+                onConnectionConnected(channel);
                 handOffAfterConnect(channel);
             }
         }
@@ -488,8 +489,7 @@ public abstract class AbstractReactor implements IReactor {
             byte[] msg = null;
             if ((msg = readMessage(channel)) != null) {
                 removeOps(channel, SelectionKey.OP_READ);
-                final IMessageEventListener listener = getMessageEventListener(channel);
-                if (listener != null) listener.eventMessageReceived(msg);
+                onMessageReceived(channel, msg);
                 handOffAfterRead(channel);
             }
         }
@@ -663,9 +663,7 @@ public abstract class AbstractReactor implements IReactor {
                 case CLOSE_CHANNEL:
                     try {
                         request.channel.close();
-                        final IConnectionEventListener connectionEventListener = getConnectionEventListener(request.channel);
-                        if (connectionEventListener != null)
-                            connectionEventListener.eventConnectionClosed(AbstractReactor.this, request.channel);
+                        onConnectionClosed(request.channel);
                     } catch (final IOException ex) {
                         logger.logp(WARNING, getClass().getName(), "processChangeRequest()",
                             "CLOSE_CHANNEL" + ex.getMessage(), ex);
