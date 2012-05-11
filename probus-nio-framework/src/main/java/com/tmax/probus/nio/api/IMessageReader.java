@@ -1,5 +1,5 @@
 /*
- * IMessageMaker.java Version 1.0 Feb 15, 2012
+ * IMessageHandler.java Version 1.0 Mar 9, 2012
  * *
  * Copyright (c) 2010 by Tmax Soft co., Ltd.
  * All rights reserved.
@@ -13,18 +13,39 @@
 package com.tmax.probus.nio.api;
 
 
-import java.nio.ByteBuffer;
+import java.io.IOException;
 
 
 /**
- * The Interface IMessageReader.
+ *
  */
 public interface IMessageReader {
     /**
-     * Read buffer.
-     * @param readBuffer the read buffer
-     * @param isEof
-     * @return 메세지가 끝까지 읽어들여졌는지의 여부를 반환한다.
+     * buffer로 부터 메세지를 읽어들인다. OP_READ 이벤트 발생시 호출된다. handOff 처리되려면 byte[]를 리턴해야
+     * 한다.
+     * @param isEof EOF 여부
+     * @return 하나의 메세지를 다 읽은게 아니라면 null을 반환
      */
-    byte[] readBuffer(ByteBuffer buffer, boolean isEof);
+    byte[] read() throws IOException;
+
+    /**
+     * 전송할 byte[] 메세지를 등록한다.
+     * @param msg the msg
+     */
+    void write(byte[] msg);
+
+    /**
+     * 전송할 byte[] 메세지 중 offset부터 length만큼을 등록한다.
+     * @param msg the msg
+     * @param offset the offset
+     * @param length the length
+     */
+    void write(byte[] msg, int offset, int length);
+
+    /**
+     * 메세지를 전송한다. OP_WRITE 이벤트 발생시 호출된다. handOff 처리되려면 true를 리턴해야 한다.
+     * @return true, if finish
+     * @throws IOException Signals that an I/O exception has occurred.
+     */
+    boolean send() throws IOException;
 }

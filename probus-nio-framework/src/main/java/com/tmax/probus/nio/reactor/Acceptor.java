@@ -110,14 +110,6 @@ public class Acceptor extends AbstractSessionReactor implements IAcceptor {
     }
 
     /** {@inheritDoc} */
-    @Override protected ISession createSession(SocketChannel channel) {
-        if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "createSession");
-        // XXX must do something
-        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "createSession");
-        return null;
-    }
-
-    /** {@inheritDoc} */
     @Override protected void onConnectionClosed(SelectableChannel channel) {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "onConnectionClosed");
         // XXX must do something

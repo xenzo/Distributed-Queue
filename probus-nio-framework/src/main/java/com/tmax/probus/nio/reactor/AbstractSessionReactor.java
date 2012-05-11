@@ -22,12 +22,14 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import com.tmax.probus.nio.api.IConnectionEventListener;
+import com.tmax.probus.nio.api.IEndPointInfo;
 import com.tmax.probus.nio.api.IMessageEventListener;
-import com.tmax.probus.nio.api.IMessageHandler;
+import com.tmax.probus.nio.api.IMessageReader;
 import com.tmax.probus.nio.api.ISession;
 import com.tmax.probus.nio.api.ISessionManager;
 
@@ -40,6 +42,8 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.nio.reactor");
     /** The channel session map_. */
     private Map<SelectableChannel, ISession> channelSessionMap_;
+    /** The end point map_. */
+    private Map<IEndPointInfo, Queue<ISession>> endPointMap_;
 
     /** {@inheritDoc} */
     @Override public void destroy() {
@@ -63,6 +67,11 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
     }
 
     /** {@inheritDoc} */
+    @Override public ISession newSession() {
+        return null;
+    }
+
+    /** {@inheritDoc} */
     @Override public void putSession(final SelectableChannel channel, final ISession session) {
         channelSessionMap_.put(channel, session);
     }
@@ -78,7 +87,8 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
         final SocketChannel channel = serverChannel.accept();
         channel.configureBlocking(false);
         if (isConnected(channel)) {
-            final ISession session = createSession(channel);
+            final ISession session = newSession();
+            session.setChannel(channel);
             putSession(channel, session);
             return channel;
         }
@@ -118,19 +128,26 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
         channel.configureBlocking(false);
         if (localAddr != null) channel.socket().bind(localAddr);
         channel.connect(remoteAddr);
-        session = createSession(channel);
+        session = newSession();
+        session.setChannel(channel);
         putSession(channel, session);
         register(channel, SelectionKey.OP_CONNECT);
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "connect(InetSocketAddress, InetSocketAddress)", "end - return value=" + session);
         return session;
     }
 
-    /**
-     * Creates the session.
-     * @param channel the channel
-     * @return the i session
-     */
-    protected abstract ISession createSession(final SocketChannel channel);
+    protected IConnectionEventListener getConnectionEventListener(final SelectableChannel channel) {
+        return getSession(channel).getConnectionEventListener();
+    }
+
+    protected IMessageEventListener getMessageEventListener(final SocketChannel channel) {
+        return getSession(channel).getMessageEventListener();
+    }
+
+    /** {@inheritDoc} */
+    @Override protected IMessageReader getMessageReader(final SocketChannel channel) {
+        return getSession(channel).getMessageHandler();
+    }
 
     /** {@inheritDoc} */
     @Override protected void handOffAfterAccept(final SocketChannel channel) {
@@ -150,18 +167,5 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
     /** {@inheritDoc} */
     @Override protected void handOffAfterWrite(final SocketChannel channel) {
         getSession(channel).afterWrite(this);
-    }
-
-    protected IConnectionEventListener getConnectionEventListener(SelectableChannel channel) {
-        return getSession((SocketChannel) channel).getConnectionEventListener();
-    }
-
-    protected IMessageEventListener getMessageEventListener(SocketChannel channel) {
-        return getSession(channel).getMessageEventListener();
-    }
-
-    /** {@inheritDoc} */
-    @Override protected IMessageHandler getMessageHandler(SocketChannel channel) {
-        return getSession(channel).getMessageHandler();
     }
 }

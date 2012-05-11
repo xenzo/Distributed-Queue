@@ -14,6 +14,7 @@ package com.tmax.probus.nio.api;
 
 
 import java.net.Socket;
+import java.nio.channels.SelectableChannel;
 import java.nio.channels.SocketChannel;
 
 
@@ -77,7 +78,7 @@ public interface ISession {
      * Gets the message handler.
      * @return the message handler
      */
-    IMessageHandler getMessageHandler();
+    IMessageReader getMessageHandler();
 
     /**
      * Gets the connection event listener.
@@ -86,8 +87,12 @@ public interface ISession {
     IConnectionEventListener getConnectionEventListener();
 
     /**
-     *
      * @return
      */
     IMessageEventListener getMessageEventListener();
+
+    /**
+     * @param channel
+     */
+    void setChannel(SelectableChannel channel);
 }

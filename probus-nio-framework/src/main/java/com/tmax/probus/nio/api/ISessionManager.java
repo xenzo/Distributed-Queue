@@ -12,6 +12,7 @@
  */
 package com.tmax.probus.nio.api;
 
+
 import java.nio.channels.SelectableChannel;
 
 
@@ -39,4 +40,10 @@ public interface ISessionManager {
      * @return the i session
      */
     ISession removeSession(SelectableChannel channel);
+
+    /**
+     * 세션을 생성한다.
+     * @return the i session
+     */
+    ISession newSession();
 }

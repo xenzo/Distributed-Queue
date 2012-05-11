@@ -45,7 +45,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
-import com.tmax.probus.nio.api.IMessageHandler;
+import com.tmax.probus.nio.api.IMessageReader;
 import com.tmax.probus.nio.api.IReactor;
 import com.tmax.probus.nio.api.ISelectorDispatcher;
 
@@ -160,8 +160,7 @@ public abstract class AbstractReactor implements IReactor {
                 return t;
             }
         };
-        dispatchExecutor_ = new ThreadPoolExecutor(1, 3, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
-                tf);
+        dispatchExecutor_ = new ThreadPoolExecutor(1, 3, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(), tf);
         defaultDispatcher_ = createSelectorDispatcher("DEFAULT");
     }
 
@@ -235,7 +234,7 @@ public abstract class AbstractReactor implements IReactor {
      * @param channel the channel
      * @return the message handler
      */
-    abstract protected IMessageHandler getMessageHandler(SocketChannel channel);
+    abstract protected IMessageReader getMessageReader(SocketChannel channel);
 
     /**
      * Gets the selector time out.
@@ -299,11 +298,36 @@ public abstract class AbstractReactor implements IReactor {
     abstract protected void onConnectionConnected(final SelectableChannel channel);
 
     /**
+     * @param channel
+     * @param interestOps
+     */
+    protected void afterEveryDispatch(final SelectableChannel channel, final int readyOps) {
+    }
+
+    /**
      * On message received.
      * @param channel the channel
      * @param msg the msg
      */
     abstract protected void onMessageReceived(final SocketChannel channel, final byte[] msg);
+
+    /**
+     * On message sent.
+     * @param channel the channel
+     * @param msg the msg
+     */
+    abstract protected void onMessageSent(final SocketChannel channel, final byte[] msg);
+
+    /**
+     * Process after jobs.
+     * @param channel
+     */
+    protected void postChangeRequest() {
+    }
+
+    /** Process pending jobs. */
+    protected void preChangeRequest() {
+    }
 
     /**
      * channel로 부터 데이터를 읽는다.
@@ -314,7 +338,7 @@ public abstract class AbstractReactor implements IReactor {
     protected byte[] readMessage(final SocketChannel channel) throws IOException {
         if (logger.isLoggable(FINER))
             logger.entering(getClass().getName(), "readMessage(SocketChannel=" + channel + ")", "start");
-        final IMessageHandler handler = getMessageHandler(channel);
+        final IMessageReader handler = getMessageReader(channel);
         if (handler == null) throw new NullPointerException();
         final byte[] msg = handler.read();
         if (logger.isLoggable(FINER))
@@ -331,7 +355,7 @@ public abstract class AbstractReactor implements IReactor {
     protected boolean sendMessage(final SocketChannel channel) throws IOException {
         if (logger.isLoggable(FINER))
             logger.entering(getClass().getName(), "writeMessage(SocketChannel=" + channel + ")", "start");
-        final IMessageHandler handler = getMessageHandler(channel);
+        final IMessageReader handler = getMessageReader(channel);
         if (handler == null) throw new NullPointerException();
         final boolean ret = handler.send();
         if (logger.isLoggable(FINER))
@@ -345,7 +369,7 @@ public abstract class AbstractReactor implements IReactor {
         private final ChangeType type;
         /** The channel_. */
         private final SelectableChannel channel;
-        /** The ops */
+        /** The ops. */
         private final int ops;
 
         /**
@@ -414,7 +438,7 @@ public abstract class AbstractReactor implements IReactor {
         /**
          * Instantiates a new selector dispatcher.
          * @param name the name
-         * @param dispatchExecutor
+         * @param dispatchExecutor the dispatch executor
          */
         public SelectorDispatcher(final String name, final ExecutorService dispatchExecutor) {
             name_ = name;
@@ -463,13 +487,14 @@ public abstract class AbstractReactor implements IReactor {
         }
 
         /** {@inheritDoc} */
-        @Override public void handleAccept(final SelectionKey key) throws IOException {
+        @Override public SelectableChannel handleAccept(final SelectionKey key) throws IOException {
             final SocketChannel channel = accept(key);
             if (isConnected(channel)) {
                 initSocket(channel.socket());
                 onConnectionConnected(channel);
                 handOffAfterAccept(channel);
             }
+            return channel;
         }
 
         /** {@inheritDoc} */
@@ -560,15 +585,6 @@ public abstract class AbstractReactor implements IReactor {
             selector_.wakeup();
         }
 
-        /** Process after jobs. */
-        protected void postDispatch() {
-        }
-
-        /** Process pending jobs. */
-        protected void preDispatch() {
-            processChangeRequest();
-        }
-
         /**
          * Adds the change request.
          * @param request the request
@@ -592,16 +608,8 @@ public abstract class AbstractReactor implements IReactor {
                 while (selectedKeys.hasNext()) {
                     final SelectionKey key = selectedKeys.next();
                     selectedKeys.remove();
-                    try {
-                        if (!key.isValid()) continue;
-                        if (key.isAcceptable()) handleAccept(key);
-                        if (key.isConnectable()) handleConnect(key);
-                        if (key.isReadable()) handleRead(key);
-                        if (key.isWritable()) handleWrite(key);
-                    } catch (final CancelledKeyException cke) {
-                        logger.logp(WARNING, getClass().getName(), "dispatch()", cke.getMessage(), cke);
-                        closeChannel(key.channel());
-                    }
+                    final SelectableChannel channel = processSelectedKey(key);
+                    if (channel != null) afterEveryDispatch(channel, key.readyOps());
                 }
             } catch (final IOException ex) {
                 logger.logp(SEVERE, getClass().getName(), "dispatch()", "", ex);
@@ -612,17 +620,19 @@ public abstract class AbstractReactor implements IReactor {
         /** Select all. */
         private final void dispatchLoop() {
             if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "dispatchLoop()", "start");
-            while (isContinue())
+            while (isContinue()) {
                 try {
-                    preDispatch();
+                    preChangeRequest();
+                    processChangeRequest();
+                    postChangeRequest();
                     dispatch();
-                    postDispatch();
                 } catch (final ClosedSelectorException e) {
                     logger.logp(SEVERE, getClass().getName(), "dispatchLoop()", "", e);
                     break;
                 } catch (final Throwable t) {
                     logger.logp(SEVERE, getClass().getName(), "dispatchLoop()", "", t);
                 }
+            }
             if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "dispatchLoop()", "end");
         }
 
@@ -678,6 +688,27 @@ public abstract class AbstractReactor implements IReactor {
                     break;
                 }
             }
+        }
+
+        /**
+         * Process selected key.
+         * @param key the key
+         * @return the selectable channel
+         * @throws IOException Signals that an I/O exception has occurred.
+         */
+        private SelectableChannel processSelectedKey(final SelectionKey key) throws IOException {
+            SelectableChannel channel = key.channel();
+            try {
+                if (!key.isValid()) return null;
+                if (key.isAcceptable()) channel = handleAccept(key);
+                if (key.isConnectable()) handleConnect(key);
+                if (key.isReadable()) handleRead(key);
+                if (key.isWritable()) handleWrite(key);
+            } catch (final CancelledKeyException cke) {
+                logger.logp(WARNING, getClass().getName(), "processSelectedKey()", cke.getMessage(), cke);
+                closeChannel(key.channel());
+            }
+            return channel;
         }
     }//end of Dispatcher
 }

@@ -23,7 +23,7 @@ import com.tmax.probus.nio.api.ISession;
 /**
  * The Class AbstractSession.
  */
-public abstract class AbstractSession extends AbstractMessageHandler implements ISession {
+public abstract class AbstractSession extends AbstractMessageReader implements ISession {
     /**
      * Instantiates a new abstract session.
      * @param reactor the reactor
