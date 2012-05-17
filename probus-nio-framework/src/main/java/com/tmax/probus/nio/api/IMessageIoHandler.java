@@ -19,7 +19,7 @@ import java.io.IOException;
 /**
  *
  */
-public interface IMessageReader {
+public interface IMessageIoHandler {
     /**
      * buffer로 부터 메세지를 읽어들인다. OP_READ 이벤트 발생시 호출된다. handOff 처리되려면 byte[]를 리턴해야
      * 한다.

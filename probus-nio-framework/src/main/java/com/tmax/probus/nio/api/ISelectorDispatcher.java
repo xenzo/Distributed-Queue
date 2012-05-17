@@ -19,23 +19,34 @@ import java.nio.channels.SelectionKey;
 
 
 /** selector 처리자 인터페이스. */
-public interface ISelectorDispatcher extends ISelector, ILifeCycle, Runnable {
+public interface ISelectorDispatcher extends ISelectorOperation, ILifeCycle, Runnable {
     /**
      * Handle accept.
-     * @return
+     * @param key the key
+     * @return the selectable channel
+     * @throws IOException Signals that an I/O exception has occurred.
      */
     SelectableChannel handleAccept(SelectionKey key) throws IOException;
 
     /**
      * Handle connect.
      * @param key the key
+     * @throws IOException Signals that an I/O exception has occurred.
      */
     void handleConnect(SelectionKey key) throws IOException;
 
-    /** Handle read. */
+    /**
+     * Handle read.
+     * @param key the key
+     * @throws IOException Signals that an I/O exception has occurred.
+     */
     void handleRead(SelectionKey key) throws IOException;
 
-    /** Handle write. */
+    /**
+     * Handle write.
+     * @param key the key
+     * @throws IOException Signals that an I/O exception has occurred.
+     */
     void handleWrite(SelectionKey key) throws IOException;
 
     /** Wakeup selector. */

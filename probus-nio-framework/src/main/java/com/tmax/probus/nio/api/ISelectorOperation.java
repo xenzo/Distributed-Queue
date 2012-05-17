@@ -12,16 +12,31 @@
  */
 package com.tmax.probus.nio.api;
 
+
 import java.nio.channels.SelectableChannel;
 
+
 /** selector 관련 작업 인터페이스 */
-public interface ISelector {
+public interface ISelectorOperation {
+    /**
+     * channel의 interestOpts에 추가한다.
+     * @param channel the channel
+     * @param opts the opts
+     */
+    void addOps(SelectableChannel channel, int opts);
+
     /**
      * channel의 interestOpts을 변경한다.
      * @param channel the channel
      * @param opts the opts
      */
     void changeOps(SelectableChannel channel, int opts);
+
+    /**
+     * Close channel.
+     * @param channel the channel
+     */
+    void closeChannel(SelectableChannel channel);
 
     /**
      * Deregister.
@@ -42,13 +57,4 @@ public interface ISelector {
      * @param opts the opts
      */
     void removeOps(SelectableChannel channel, int opts);
-
-    /**
-     * channel의 interestOpts에 추가한다.
-     * @param channel the channel
-     * @param opts the opts
-     */
-    void addOps(SelectableChannel channel, int opts);
-
-    void closeChannel(SelectableChannel channel);
 }

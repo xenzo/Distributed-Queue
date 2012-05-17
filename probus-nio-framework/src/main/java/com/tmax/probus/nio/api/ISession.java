@@ -72,13 +72,13 @@ public interface ISession {
      * 인바운드 메세지를 완성할 IMessageReader객체를 변경한다.
      * @param reader the new message reader
      */
-    void setMessageReader(IMessageReader reader);
+    void setMessageReader(IMessageIoHandler reader);
 
     /**
      * Gets the message handler.
      * @return the message handler
      */
-    IMessageReader getMessageHandler();
+    IMessageIoHandler getMessageHandler();
 
     /**
      * Gets the connection event listener.

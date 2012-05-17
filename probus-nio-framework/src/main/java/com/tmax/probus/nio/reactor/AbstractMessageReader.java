@@ -25,14 +25,14 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
-import com.tmax.probus.nio.api.IMessageReader;
+import com.tmax.probus.nio.api.IMessageIoHandler;
 import com.tmax.probus.nio.api.IReactor;
 
 
 /**
  * The Class AbstractMessageHandler.
  */
-public abstract class AbstractMessageReader implements IMessageReader {
+public abstract class AbstractMessageReader implements IMessageIoHandler {
     /** Logger for this class */
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.nio.reactor");
     /** The write queue */

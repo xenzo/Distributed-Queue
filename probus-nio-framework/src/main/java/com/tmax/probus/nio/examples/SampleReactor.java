@@ -19,7 +19,7 @@ import java.nio.channels.SelectableChannel;
 import java.nio.channels.SocketChannel;
 import java.util.logging.Logger;
 
-import com.tmax.probus.nio.api.IMessageReader;
+import com.tmax.probus.nio.api.IMessageIoHandler;
 import com.tmax.probus.nio.reactor.AbstractReactor;
 
 
@@ -33,7 +33,7 @@ public class SampleReactor extends AbstractReactor {
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.nio.examples");
 
     /** {@inheritDoc} */
-    @Override protected IMessageReader getMessageReader(SocketChannel channel) {
+    @Override protected IMessageIoHandler getMessageReader(SocketChannel channel) {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "getMessageHandler");
         // XXX must do something
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "getMessageHandler");

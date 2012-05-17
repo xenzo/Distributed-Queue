@@ -21,6 +21,13 @@ import java.nio.channels.SelectableChannel;
  */
 public interface ISessionManager {
     /**
+     * 세션을 생성한다.
+     * @param channel
+     * @return
+     */
+    ISession createSession(SelectableChannel channel);
+
+    /**
      * 인자로 넘어온 channel에 해당하는 ISession객체를 반환한다.
      * @param channel the channel
      * @return the session
@@ -40,10 +47,4 @@ public interface ISessionManager {
      * @return the i session
      */
     ISession removeSession(SelectableChannel channel);
-
-    /**
-     * 세션을 생성한다.
-     * @return the i session
-     */
-    ISession newSession();
 }
