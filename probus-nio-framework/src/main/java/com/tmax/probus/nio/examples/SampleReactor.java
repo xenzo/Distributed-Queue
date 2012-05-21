@@ -33,7 +33,7 @@ public class SampleReactor extends AbstractReactor {
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.nio.examples");
 
     /** {@inheritDoc} */
-    @Override protected IMessageIoHandler getMessageReader(SocketChannel channel) {
+    @Override protected IMessageIoHandler getMessageHandler(SocketChannel channel) {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "getMessageHandler");
         // XXX must do something
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "getMessageHandler");

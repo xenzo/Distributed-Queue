@@ -13,18 +13,6 @@
 package com.tmax.probus.nio.reactor;
 
 
-/*
-* AbstractReactor.java Version 1.0 Feb 24, 2012
-* *
-* Copyright (c) 2010 by Tmax Soft co., Ltd.
-* All rights reserved.
-* *
-* This software is the confidential and proprietary information of
-* Tmax Soft co.,Ltd("Confidential Information").
-* You shall not disclose such Confidential Information
-* and shall use it only in accordance with the terms of the license agreement
-* entered into with Tmax Soft co., Ltd.
-*/
 import static java.util.logging.Level.*;
 
 import java.io.IOException;
@@ -37,7 +25,10 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -57,21 +48,27 @@ public abstract class AbstractReactor implements IReactor {
     protected final transient Logger logger = Logger.getLogger("com.tmax.probus.nio.reactor");
     /** The dispatcher executor_. */
     private ExecutorService dispatchExecutor_;
-    /** The default dispatcher_. */
-    private ISelectorDispatcher defaultDispatcher_;
+    /** The accept dispatchers. */
+    private final List<ISelectorDispatcher> acceptDispatchers_ = Collections.synchronizedList(new ArrayList<ISelectorDispatcher>());
+    /** The connect dispatchers. */
+    private final List<ISelectorDispatcher> connectDispatchers_ = Collections.synchronizedList(new ArrayList<ISelectorDispatcher>());
+    /** The read dispatchers. */
+    private final List<ISelectorDispatcher> readDispatchers_ = Collections.synchronizedList(new ArrayList<ISelectorDispatcher>());
+    /** The write dispatchers. */
+    private final List<ISelectorDispatcher> writeDispatchers_ = Collections.synchronizedList(new ArrayList<ISelectorDispatcher>());
 
     /** {@inheritDoc} */
     @Override public void addOps(final SelectableChannel channel, final int ops) {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(),
             "addOps(SelectableChannel=" + channel + ", int=" + ops + ")", "start");
-        if ((ops & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT && getAcceptDispatcher() != null)
-            getAcceptDispatcher().addOps(channel, SelectionKey.OP_ACCEPT);
-        if ((ops & SelectionKey.OP_CONNECT) == SelectionKey.OP_CONNECT && getConnectDispatcher() != null)
-            getConnectDispatcher().addOps(channel, SelectionKey.OP_CONNECT);
-        if ((ops & SelectionKey.OP_READ) == SelectionKey.OP_READ && getReadDispatcher() != null)
-            getReadDispatcher().addOps(channel, SelectionKey.OP_READ);
-        if ((ops & SelectionKey.OP_WRITE) == SelectionKey.OP_WRITE && getWriteDispatcher() != null)
-            getWriteDispatcher().addOps(channel, SelectionKey.OP_WRITE);
+        if ((ops & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT && getAcceptDispatcher(channel) != null)
+            getAcceptDispatcher(channel).addOps(channel, SelectionKey.OP_ACCEPT);
+        if ((ops & SelectionKey.OP_CONNECT) == SelectionKey.OP_CONNECT && getConnectDispatcher(channel) != null)
+            getConnectDispatcher(channel).addOps(channel, SelectionKey.OP_CONNECT);
+        if ((ops & SelectionKey.OP_READ) == SelectionKey.OP_READ && getReadDispatcher(channel) != null)
+            getReadDispatcher(channel).addOps(channel, SelectionKey.OP_READ);
+        if ((ops & SelectionKey.OP_WRITE) == SelectionKey.OP_WRITE && getWriteDispatcher(channel) != null)
+            getWriteDispatcher(channel).addOps(channel, SelectionKey.OP_WRITE);
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "addOps(SelectionKey, int)", "end");
     }
 
@@ -89,14 +86,14 @@ public abstract class AbstractReactor implements IReactor {
     @Override public final void closeChannel(final SelectableChannel channel) {
         if (logger.isLoggable(FINER))
             logger.entering(getClass().getName(), "closeChannel(SelectableChannel=" + channel + ")", "start");
-        if ((channel.validOps() & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT && getAcceptDispatcher() != null)
-            getAcceptDispatcher().closeChannel(channel);
-        if ((channel.validOps() & SelectionKey.OP_CONNECT) == SelectionKey.OP_CONNECT && getConnectDispatcher() != null)
-            getConnectDispatcher().closeChannel(channel);
-        if ((channel.validOps() & SelectionKey.OP_READ) == SelectionKey.OP_READ && getReadDispatcher() != null)
-            getReadDispatcher().closeChannel(channel);
-        if ((channel.validOps() & SelectionKey.OP_WRITE) == SelectionKey.OP_WRITE && getWriteDispatcher() != null)
-            getWriteDispatcher().closeChannel(channel);
+        if ((channel.validOps() & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT && getAcceptDispatcher(channel) != null)
+            getAcceptDispatcher(channel).closeChannel(channel);
+        if ((channel.validOps() & SelectionKey.OP_CONNECT) == SelectionKey.OP_CONNECT && getConnectDispatcher(channel) != null)
+            getConnectDispatcher(channel).closeChannel(channel);
+        if ((channel.validOps() & SelectionKey.OP_READ) == SelectionKey.OP_READ && getReadDispatcher(channel) != null)
+            getReadDispatcher(channel).closeChannel(channel);
+        if ((channel.validOps() & SelectionKey.OP_WRITE) == SelectionKey.OP_WRITE && getWriteDispatcher(channel) != null)
+            getWriteDispatcher(channel).closeChannel(channel);
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "closeChannel(SelectableChannel)", "end");
     }
 
@@ -104,51 +101,53 @@ public abstract class AbstractReactor implements IReactor {
     @Override public void deregister(final SelectableChannel channel) {
         if (logger.isLoggable(FINER))
             logger.entering(getClass().getName(), "deregister(SelectableChannel=" + channel + ")", "start");
-        if ((channel.validOps() & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT && getAcceptDispatcher() != null)
-            getAcceptDispatcher().deregister(channel);
-        if ((channel.validOps() & SelectionKey.OP_CONNECT) == SelectionKey.OP_CONNECT && getConnectDispatcher() != null)
-            getConnectDispatcher().deregister(channel);
-        if ((channel.validOps() & SelectionKey.OP_READ) == SelectionKey.OP_READ && getReadDispatcher() != null)
-            getReadDispatcher().deregister(channel);
-        if ((channel.validOps() & SelectionKey.OP_WRITE) == SelectionKey.OP_WRITE && getWriteDispatcher() != null)
-            getWriteDispatcher().deregister(channel);
+        if ((channel.validOps() & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT && getAcceptDispatcher(channel) != null)
+            getAcceptDispatcher(channel).deregister(channel);
+        if ((channel.validOps() & SelectionKey.OP_CONNECT) == SelectionKey.OP_CONNECT && getConnectDispatcher(channel) != null)
+            getConnectDispatcher(channel).deregister(channel);
+        if ((channel.validOps() & SelectionKey.OP_READ) == SelectionKey.OP_READ && getReadDispatcher(channel) != null)
+            getReadDispatcher(channel).deregister(channel);
+        if ((channel.validOps() & SelectionKey.OP_WRITE) == SelectionKey.OP_WRITE && getWriteDispatcher(channel) != null)
+            getWriteDispatcher(channel).deregister(channel);
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "deregister(SelectableChannel)", "end");
     }
 
     /** {@inheritDoc} */
     @Override public void destroy() {
-        if (dispatchExecutor_ != null && !dispatchExecutor_.isShutdown()) {
-            try {
-                dispatchExecutor_.shutdown();
-                if (!dispatchExecutor_.awaitTermination(1, TimeUnit.SECONDS)) dispatchExecutor_.shutdownNow();
-            } catch (final InterruptedException ex) {
-                logger.log(WARNING, ex.getMessage(), ex);
-            } finally {
-                final ExecutorService excutor = dispatchExecutor_;
-                dispatchExecutor_ = null;
-                if (!excutor.isShutdown()) excutor.shutdownNow();
-            }
+        if (dispatchExecutor_ != null && !dispatchExecutor_.isShutdown()) try {
+            dispatchExecutor_.shutdown();
+            if (!dispatchExecutor_.awaitTermination(1, TimeUnit.SECONDS)) dispatchExecutor_.shutdownNow();
+        } catch (final InterruptedException ex) {
+            logger.log(WARNING, ex.getMessage(), ex);
+        } finally {
+            final ExecutorService excutor = dispatchExecutor_;
+            dispatchExecutor_ = null;
+            if (!excutor.isShutdown()) excutor.shutdownNow();
         }
+        getAcceptDispatchers().clear();
+        getConnectDispatchers().clear();
+        getReadDispatchers().clear();
+        getWriteDispatchers().clear();
     }
 
     /** {@inheritDoc} */
-    @Override public ISelectorDispatcher getAcceptDispatcher() {
-        return defaultDispatcher_;
+    @Override public ISelectorDispatcher getAcceptDispatcher(final SelectableChannel channel) {
+        return chooseDispatcher(getAcceptDispatchers(), channel);
     }
 
     /** {@inheritDoc} */
-    @Override public ISelectorDispatcher getConnectDispatcher() {
-        return defaultDispatcher_;
+    @Override public ISelectorDispatcher getConnectDispatcher(final SelectableChannel channel) {
+        return chooseDispatcher(getConnectDispatchers(), channel);
     }
 
     /** {@inheritDoc} */
-    @Override public ISelectorDispatcher getReadDispatcher() {
-        return defaultDispatcher_;
+    @Override public ISelectorDispatcher getReadDispatcher(final SelectableChannel channel) {
+        return chooseDispatcher(getReadDispatchers(), channel);
     }
 
     /** {@inheritDoc} */
-    @Override public ISelectorDispatcher getWriteDispatcher() {
-        return defaultDispatcher_;
+    @Override public ISelectorDispatcher getWriteDispatcher(final SelectableChannel channel) {
+        return chooseDispatcher(getWriteDispatchers(), channel);
     }
 
     /** {@inheritDoc} */
@@ -163,23 +162,22 @@ public abstract class AbstractReactor implements IReactor {
                 return t;
             }
         };
-        dispatchExecutor_ = new ThreadPoolExecutor(1, 3, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
-                tf);
-        defaultDispatcher_ = createSelectorDispatcher("DEFAULT");
+        dispatchExecutor_ = new ThreadPoolExecutor(1, getMaxSelectorThreadCount(), 0L, TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<Runnable>(), tf);
     }
 
     /** {@inheritDoc} */
     @Override public void register(final SelectableChannel channel, final int ops) {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(),
             "register(SelectableChannel=" + channel + ", int=" + ops + ")", "start");
-        if ((ops & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT && getAcceptDispatcher() != null)
-            getAcceptDispatcher().register(channel, SelectionKey.OP_ACCEPT);
-        if ((ops & SelectionKey.OP_CONNECT) == SelectionKey.OP_CONNECT && getConnectDispatcher() != null)
-            getConnectDispatcher().register(channel, SelectionKey.OP_CONNECT);
-        if ((ops & SelectionKey.OP_READ) == SelectionKey.OP_READ && getReadDispatcher() != null)
-            getReadDispatcher().register(channel, SelectionKey.OP_READ);
-        if ((ops & SelectionKey.OP_WRITE) == SelectionKey.OP_WRITE && getWriteDispatcher() != null)
-            getWriteDispatcher().register(channel, SelectionKey.OP_WRITE);
+        if ((ops & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT && getAcceptDispatcher(channel) != null)
+            getAcceptDispatcher(channel).register(channel, SelectionKey.OP_ACCEPT);
+        if ((ops & SelectionKey.OP_CONNECT) == SelectionKey.OP_CONNECT && getConnectDispatcher(channel) != null)
+            getConnectDispatcher(channel).register(channel, SelectionKey.OP_CONNECT);
+        if ((ops & SelectionKey.OP_READ) == SelectionKey.OP_READ && getReadDispatcher(channel) != null)
+            getReadDispatcher(channel).register(channel, SelectionKey.OP_READ);
+        if ((ops & SelectionKey.OP_WRITE) == SelectionKey.OP_WRITE && getWriteDispatcher(channel) != null)
+            getWriteDispatcher(channel).register(channel, SelectionKey.OP_WRITE);
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "register(SelectableChannel, int)", "end");
     }
 
@@ -187,41 +185,64 @@ public abstract class AbstractReactor implements IReactor {
     @Override public void removeOps(final SelectableChannel channel, final int ops) {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(),
             "removeOps(SelectableChannel=" + channel + ", int=" + ops + ")", "start");
-        if ((ops & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT && getAcceptDispatcher() != null)
-            getAcceptDispatcher().removeOps(channel, SelectionKey.OP_ACCEPT);
-        if ((ops & SelectionKey.OP_CONNECT) == SelectionKey.OP_CONNECT && getConnectDispatcher() != null)
-            getConnectDispatcher().removeOps(channel, SelectionKey.OP_CONNECT);
-        if ((ops & SelectionKey.OP_READ) == SelectionKey.OP_READ && getReadDispatcher() != null)
-            getReadDispatcher().removeOps(channel, SelectionKey.OP_READ);
-        if ((ops & SelectionKey.OP_WRITE) == SelectionKey.OP_WRITE && getWriteDispatcher() != null)
-            getWriteDispatcher().removeOps(channel, SelectionKey.OP_WRITE);
+        if ((ops & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT && getAcceptDispatcher(channel) != null)
+            getAcceptDispatcher(channel).removeOps(channel, SelectionKey.OP_ACCEPT);
+        if ((ops & SelectionKey.OP_CONNECT) == SelectionKey.OP_CONNECT && getConnectDispatcher(channel) != null)
+            getConnectDispatcher(channel).removeOps(channel, SelectionKey.OP_CONNECT);
+        if ((ops & SelectionKey.OP_READ) == SelectionKey.OP_READ && getReadDispatcher(channel) != null)
+            getReadDispatcher(channel).removeOps(channel, SelectionKey.OP_READ);
+        if ((ops & SelectionKey.OP_WRITE) == SelectionKey.OP_WRITE && getWriteDispatcher(channel) != null)
+            getWriteDispatcher(channel).removeOps(channel, SelectionKey.OP_WRITE);
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "removeOps(SelectableChannel, int)", "end");
     }
 
     /** {@inheritDoc} */
     @Override public void start() {
-        if (getWriteDispatcher() != null) getWriteDispatcher().start();
-        if (getReadDispatcher() != null) getReadDispatcher().start();
-        if (getConnectDispatcher() != null) getConnectDispatcher().start();
-        if (getAcceptDispatcher() != null) getAcceptDispatcher().start();
+        startDispatchers(getWriteDispatchers());
+        startDispatchers(getReadDispatchers());
+        startDispatchers(getConnectDispatchers());
+        startDispatchers(getAcceptDispatchers());
     }
 
     /** {@inheritDoc} */
     @Override public void stop() {
-        if (getAcceptDispatcher() != null) getAcceptDispatcher().stop();
-        if (getConnectDispatcher() != null) getConnectDispatcher().stop();
-        if (getReadDispatcher() != null) getReadDispatcher().stop();
-        if (getWriteDispatcher() != null) getWriteDispatcher().stop();
+        stopDispatchers(getAcceptDispatchers());
+        stopDispatchers(getConnectDispatchers());
+        stopDispatchers(getReadDispatchers());
+        stopDispatchers(getWriteDispatchers());
     }
 
     /**
-     * OP_ACCEPT를 처리.
-     * @param key the key
-     * @return the socket channel
-     * @throws IOException Signals that an I/O exception has occurred.
+     * Process after jobs.
+     * @param dispatcher the dispatcher
      */
-    protected SocketChannel accept(final SelectionKey key) throws IOException {
-        throw new UnsupportedOperationException();
+    protected void afterChangeRequest(final ISelectorDispatcher dispatcher) {
+    }
+
+    /**
+     * After every dispatch.
+     * @param selectorDispatcher the selector dispatcher
+     * @param channel the channel
+     * @param readyOps the ready ops
+     */
+    protected void afterEveryDispatch(final ISelectorDispatcher selectorDispatcher, final SelectableChannel channel, final int readyOps) {
+    }
+
+    /**
+     * Process pending jobs.
+     * @param dipatcher the dipatcher
+     */
+    protected void beforeChangeRequest(final ISelectorDispatcher dipatcher) {
+    }
+
+    /**
+     * Choose dispatcher.
+     * @param dispatchers the dispatchers
+     * @param channel the channel
+     * @return the i selector dispatcher
+     */
+    protected ISelectorDispatcher chooseDispatcher(final List<ISelectorDispatcher> dispatchers, final SelectableChannel channel) {
+        return dispatchers == null || dispatchers.isEmpty() ? null : dispatchers.get(channel.hashCode() % dispatchers.size());
     }
 
     /**
@@ -234,11 +255,41 @@ public abstract class AbstractReactor implements IReactor {
     }
 
     /**
+     * Gets the accept dispatchers.
+     * @return the accept dispatchers
+     */
+    protected List<ISelectorDispatcher> getAcceptDispatchers() {
+        return acceptDispatchers_;
+    }
+
+    /**
+     * Gets the connect dispatchers.
+     * @return the connect dispatchers
+     */
+    protected List<ISelectorDispatcher> getConnectDispatchers() {
+        return connectDispatchers_;
+    }
+
+    /**
+     * Gets the max selector count.
+     * @return the max selector count
+     */
+    abstract protected int getMaxSelectorThreadCount();
+
+    /**
      * Gets the message handler.
      * @param channel the channel
      * @return the message handler
      */
-    abstract protected IMessageIoHandler getMessageReader(SocketChannel channel);
+    abstract protected IMessageIoHandler getMessageHandler(SocketChannel channel);
+
+    /**
+     * Gets the read dispatchers.
+     * @return the read dispatchers
+     */
+    protected List<ISelectorDispatcher> getReadDispatchers() {
+        return readDispatchers_;
+    }
 
     /**
      * Gets the selector time out.
@@ -246,6 +297,14 @@ public abstract class AbstractReactor implements IReactor {
      */
     protected long getSelectorTimeOut() {
         return 3000L;
+    }
+
+    /**
+     * Gets the write dispatchers.
+     * @return the write dispatchers
+     */
+    protected List<ISelectorDispatcher> getWriteDispatchers() {
+        return writeDispatchers_;
     }
 
     /**
@@ -302,13 +361,6 @@ public abstract class AbstractReactor implements IReactor {
     abstract protected void onConnectionConnected(final SelectableChannel channel);
 
     /**
-     * @param channel
-     * @param readyOps
-     */
-    protected void afterEveryDispatch(final SelectableChannel channel, final int readyOps) {
-    }
-
-    /**
      * On message received.
      * @param channel the channel
      * @param msg the msg
@@ -322,14 +374,6 @@ public abstract class AbstractReactor implements IReactor {
      */
     abstract protected void onMessageSent(final SocketChannel channel, final byte[] msg);
 
-    /** Process after jobs. */
-    protected void postChangeRequest() {
-    }
-
-    /** Process pending jobs. */
-    protected void preChangeRequest() {
-    }
-
     /**
      * channel로 부터 데이터를 읽는다.
      * @param channel the channel
@@ -339,7 +383,7 @@ public abstract class AbstractReactor implements IReactor {
     protected byte[] readMessage(final SocketChannel channel) throws IOException {
         if (logger.isLoggable(FINER))
             logger.entering(getClass().getName(), "readMessage(SocketChannel=" + channel + ")", "start");
-        final IMessageIoHandler handler = getMessageReader(channel);
+        final IMessageIoHandler handler = getMessageHandler(channel);
         if (handler == null) throw new NullPointerException();
         final byte[] msg = handler.read();
         if (logger.isLoggable(FINER))
@@ -356,7 +400,7 @@ public abstract class AbstractReactor implements IReactor {
     protected boolean sendMessage(final SocketChannel channel) throws IOException {
         if (logger.isLoggable(FINER))
             logger.entering(getClass().getName(), "writeMessage(SocketChannel=" + channel + ")", "start");
-        final IMessageIoHandler handler = getMessageReader(channel);
+        final IMessageIoHandler handler = getMessageHandler(channel);
         if (handler == null) throw new NullPointerException();
         final boolean ret = handler.send();
         if (logger.isLoggable(FINER))
@@ -364,52 +408,23 @@ public abstract class AbstractReactor implements IReactor {
         return ret;
     }
 
-    /** The Class ChangeRequest. */
-    private class ChangeRequest {
-        /** The type_. */
-        private final ChangeType type;
-        /** The channel_. */
-        private final SelectableChannel channel;
-        /** The ops. */
-        private final int ops;
+    /**
+     * Start dispatchers.
+     * @param dispatchers the dispatchers
+     */
+    private void startDispatchers(final List<ISelectorDispatcher> dispatchers) {
+        if (dispatchers != null && !dispatchers.isEmpty()) for (final ISelectorDispatcher dispatcher : dispatchers)
+            dispatcher.start();
+    }
 
-        /**
-         * The Constructor.
-         * @param type the type
-         * @param channel the channel
-         * @param ops the ops
-         */
-        private ChangeRequest(final ChangeType type, final SelectableChannel channel, final int ops) {
-            this.type = type;
-            this.channel = channel;
-            this.ops = ops;
-        }
-
-        /** {@inheritDoc} */
-        @Override public String toString() {
-            final StringBuilder sb = new StringBuilder();
-            sb.append("type=" + type);
-            if (ops > 0) sb.append(", ops=").append(ops);
-            if (channel != null) sb.append(", channel=").append(channel);
-            return sb.toString();
-        }
-    }//end ChangeRequest
-
-    /** The Enum ChangeType. */
-    private enum ChangeType {
-        /** The register. */
-        REGISTER,
-        /** The deregister. */
-        DEREGISTER,
-        /** The add ops. */
-        ADD_OPS,
-        /** The change ops. */
-        CHANGE_OPS,
-        /** The remove ops. */
-        REMOVE_OPS,
-        /** The close channel. */
-        CLOSE_CHANNEL;
-    }//end ChangeType
+    /**
+     * Stop dispatchers.
+     * @param dispatchers the dispatchers
+     */
+    private void stopDispatchers(final List<ISelectorDispatcher> dispatchers) {
+        if (dispatchers != null && !dispatchers.isEmpty()) for (final ISelectorDispatcher dispatcher : dispatchers)
+            dispatcher.stop();
+    }
 
     /**
      * The Class SelectorProcessor.
@@ -436,6 +451,7 @@ public abstract class AbstractReactor implements IReactor {
         private final String name_;
         /** The executor_. */
         private final ExecutorService executor_;
+        /** The dispatcher thread_. */
         private Thread dispatcherThread_;
 
         /**
@@ -452,7 +468,7 @@ public abstract class AbstractReactor implements IReactor {
         @Override public void addOps(final SelectableChannel channel, final int ops) {
             final SelectionKey key = channel.keyFor(selector_);
             if (key == null) register(channel, ops);
-            else if ((ops ^ (key.interestOps() & ops)) != 0)
+            else if ((ops ^ key.interestOps() & ops) != 0)
                 addChangeRequest(new ChangeRequest(ChangeType.ADD_OPS, channel, ops));
         }
 
@@ -501,19 +517,6 @@ public abstract class AbstractReactor implements IReactor {
             return channel;
         }
 
-        /**
-         * Accept.
-         * @param key the key
-         * @return the socket channel
-         * @throws IOException Signals that an I/O exception has occurred.
-         */
-        protected SocketChannel accept(final SelectionKey key) throws IOException {
-            final ServerSocketChannel serverChannel = (ServerSocketChannel) key.channel();
-            final SocketChannel channel = serverChannel.accept();
-            channel.configureBlocking(false);
-            return channel;
-        }
-
         /** {@inheritDoc} */
         @Override public void handleConnect(final SelectionKey key) throws IOException {
             final SocketChannel channel = (SocketChannel) key.channel();
@@ -555,6 +558,21 @@ public abstract class AbstractReactor implements IReactor {
             } catch (final IOException ex) {
                 logger.logp(SEVERE, getClass().getName(), "init()", "", ex);
             }
+        }
+
+        /** {@inheritDoc} */
+        @Override public boolean isRegisted(final SelectableChannel channel) {
+            return channel.keyFor(selector_) == null;
+        }
+
+        /** {@inheritDoc} */
+        @Override public boolean isRegisted(final SelectableChannel channel, final int ops) {
+            final SelectionKey key = channel.keyFor(selector_);
+            if (key != null) {
+                final int interestOps = key.interestOps();
+                return (interestOps & ops) == ops;
+            }
+            return false;
         }
 
         /** {@inheritDoc} */
@@ -606,6 +624,19 @@ public abstract class AbstractReactor implements IReactor {
         }
 
         /**
+         * Accept.
+         * @param key the key
+         * @return the socket channel
+         * @throws IOException Signals that an I/O exception has occurred.
+         */
+        protected SocketChannel accept(final SelectionKey key) throws IOException {
+            final ServerSocketChannel serverChannel = (ServerSocketChannel) key.channel();
+            final SocketChannel channel = serverChannel.accept();
+            channel.configureBlocking(false);
+            return channel;
+        }
+
+        /**
          * Adds the change request.
          * @param request the request
          */
@@ -629,7 +660,7 @@ public abstract class AbstractReactor implements IReactor {
                     final SelectionKey key = selectedKeys.next();
                     selectedKeys.remove();
                     final SelectableChannel channel = processSelectedKey(key);
-                    if (channel != null) afterEveryDispatch(channel, key.readyOps());
+                    if (channel != null) afterEveryDispatch(this, channel, key.readyOps());
                 }
             } catch (final IOException ex) {
                 logger.logp(SEVERE, getClass().getName(), "dispatch()", "", ex);
@@ -637,14 +668,14 @@ public abstract class AbstractReactor implements IReactor {
             if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "dispatch()", "end");
         }
 
-        /** Select all. */
+        /** Dispatch loop. */
         private final void dispatchLoop() {
             if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "dispatchLoop()", "start");
-            while (isContinue()) {
+            while (isContinue())
                 try {
-                    preChangeRequest();
+                    beforeChangeRequest(this);
                     processChangeRequest();
-                    postChangeRequest();
+                    afterChangeRequest(this);
                     dispatch();
                 } catch (final ClosedSelectorException e) {
                     logger.logp(SEVERE, getClass().getName(), "dispatchLoop()", "", e);
@@ -652,7 +683,6 @@ public abstract class AbstractReactor implements IReactor {
                 } catch (final Throwable t) {
                     logger.logp(SEVERE, getClass().getName(), "dispatchLoop()", "", t);
                 }
-            }
             if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "dispatchLoop()", "end");
         }
 
@@ -680,7 +710,7 @@ public abstract class AbstractReactor implements IReactor {
                     break;
                 case REMOVE_OPS:
                     if (key != null && key.isValid())
-                        key.interestOps(key.interestOps() ^ (key.interestOps() & request.ops));
+                        key.interestOps(key.interestOps() ^ key.interestOps() & request.ops);
                     break;
                 case REGISTER:
                     try {
@@ -730,20 +760,52 @@ public abstract class AbstractReactor implements IReactor {
             }
             return channel;
         }
-
-        /** {@inheritDoc} */
-        @Override public boolean isRegisted(SelectableChannel channel) {
-            return channel.keyFor(selector_) == null;
-        }
-
-        /** {@inheritDoc} */
-        @Override public boolean isRegisted(SelectableChannel channel, int ops) {
-            SelectionKey key = channel.keyFor(selector_);
-            if (key != null) {
-                int interestOps = key.interestOps();
-                return (interestOps & ops) == ops;
-            }
-            return false;
-        }
     }//end of Dispatcher
+
+    /** The Class ChangeRequest. */
+    private class ChangeRequest {
+        /** The type_. */
+        private final ChangeType type;
+        /** The channel_. */
+        private final SelectableChannel channel;
+        /** The ops. */
+        private final int ops;
+
+        /**
+         * The Constructor.
+         * @param type the type
+         * @param channel the channel
+         * @param ops the ops
+         */
+        private ChangeRequest(final ChangeType type, final SelectableChannel channel, final int ops) {
+            this.type = type;
+            this.channel = channel;
+            this.ops = ops;
+        }
+
+        /** {@inheritDoc} */
+        @Override public String toString() {
+            final StringBuilder sb = new StringBuilder();
+            sb.append("type=" + type);
+            if (ops > 0) sb.append(", ops=").append(ops);
+            if (channel != null) sb.append(", channel=").append(channel);
+            return sb.toString();
+        }
+    }//end ChangeRequest
+
+    /** The Enum ChangeType. */
+    private enum ChangeType {
+        /** The register. */
+        REGISTER,
+        /** The deregister. */
+        DEREGISTER,
+        /** The add ops. */
+        ADD_OPS,
+        /** The change ops. */
+        CHANGE_OPS,
+        /** The remove ops. */
+        REMOVE_OPS,
+        /** The close channel. */
+        CLOSE_CHANNEL;
+    }//end ChangeType
 }

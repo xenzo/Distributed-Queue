@@ -12,29 +12,37 @@
  */
 package com.tmax.probus.nio.api;
 
+
+import java.nio.channels.SelectableChannel;
+
+
 /** Reactor 인터페이스. */
 public interface IReactor extends ISelectorOperation, ILifeCycle {
     /**
      * Accept 이벤트를 처리할 ISelectorProcessor객체를 반환한다.
+     * @param channel the channel
      * @return the accept processor
      */
-    ISelectorDispatcher getAcceptDispatcher();
+    ISelectorDispatcher getAcceptDispatcher(SelectableChannel channel);
 
     /**
      * Connect 이벤트를 처리할 ISelectorProcessor객체를 반환한다.
+     * @param channel the channel
      * @return the connect processor
      */
-    ISelectorDispatcher getConnectDispatcher();
+    ISelectorDispatcher getConnectDispatcher(SelectableChannel channel);
 
     /**
      * Read이벤트를 처리할 ISelectorProcessor객체를 반환한다.
+     * @param channel the channel
      * @return the read processor
      */
-    ISelectorDispatcher getReadDispatcher();
+    ISelectorDispatcher getReadDispatcher(SelectableChannel channel);
 
     /**
      * Write이벤트를 처리할 ISelectorProcessor객체를 반환한다.
+     * @param channel the channel
      * @return the read processor
      */
-    ISelectorDispatcher getWriteDispatcher();
+    ISelectorDispatcher getWriteDispatcher(SelectableChannel channel);
 }

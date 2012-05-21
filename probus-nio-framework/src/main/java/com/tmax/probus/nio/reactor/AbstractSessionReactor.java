@@ -166,7 +166,7 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
     }
 
     /** {@inheritDoc} */
-    @Override protected IMessageIoHandler getMessageReader(final SocketChannel channel) {
+    @Override protected IMessageIoHandler getMessageHandler(final SocketChannel channel) {
         return getSession(channel).getMessageHandler();
     }
 
