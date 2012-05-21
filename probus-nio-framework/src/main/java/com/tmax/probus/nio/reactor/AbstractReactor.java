@@ -730,5 +730,20 @@ public abstract class AbstractReactor implements IReactor {
             }
             return channel;
         }
+
+        /** {@inheritDoc} */
+        @Override public boolean isRegisted(SelectableChannel channel) {
+            return channel.keyFor(selector_) == null;
+        }
+
+        /** {@inheritDoc} */
+        @Override public boolean isRegisted(SelectableChannel channel, int ops) {
+            SelectionKey key = channel.keyFor(selector_);
+            if (key != null) {
+                int interestOps = key.interestOps();
+                return (interestOps & ops) == ops;
+            }
+            return false;
+        }
     }//end of Dispatcher
 }

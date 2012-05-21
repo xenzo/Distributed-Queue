@@ -51,4 +51,19 @@ public interface ISelectorDispatcher extends ISelectorOperation, ILifeCycle, Run
 
     /** Wakeup selector. */
     void wakeupSelector();
+
+    /**
+     * Checks if is registed.
+     * @param channel the channel
+     * @return true, if is registed
+     */
+    boolean isRegisted(SelectableChannel channel);
+
+    /**
+     * Checks if is registed.
+     * @param channel the channel
+     * @param ops the ops
+     * @return true, if is registed
+     */
+    boolean isRegisted(SelectableChannel channel, int ops);
 }
