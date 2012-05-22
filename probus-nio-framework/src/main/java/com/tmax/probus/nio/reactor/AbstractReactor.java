@@ -17,19 +17,12 @@ import static java.util.logging.Level.*;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.nio.channels.CancelledKeyException;
-import java.nio.channels.ClosedChannelException;
-import java.nio.channels.ClosedSelectorException;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Queue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
@@ -61,13 +54,13 @@ public abstract class AbstractReactor implements IReactor {
     @Override public void addOps(final SelectableChannel channel, final int ops) {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(),
             "addOps(SelectableChannel=" + channel + ", int=" + ops + ")", "start");
-        if ((ops & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT && getAcceptDispatcher(channel) != null)
+        if ((channel.validOps() & ops & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT && getAcceptDispatcher(channel) != null)
             getAcceptDispatcher(channel).addOps(channel, SelectionKey.OP_ACCEPT);
-        if ((ops & SelectionKey.OP_CONNECT) == SelectionKey.OP_CONNECT && getConnectDispatcher(channel) != null)
+        if ((channel.validOps() & ops & SelectionKey.OP_CONNECT) == SelectionKey.OP_CONNECT && getConnectDispatcher(channel) != null)
             getConnectDispatcher(channel).addOps(channel, SelectionKey.OP_CONNECT);
-        if ((ops & SelectionKey.OP_READ) == SelectionKey.OP_READ && getReadDispatcher(channel) != null)
+        if ((channel.validOps() & ops & SelectionKey.OP_READ) == SelectionKey.OP_READ && getReadDispatcher(channel) != null)
             getReadDispatcher(channel).addOps(channel, SelectionKey.OP_READ);
-        if ((ops & SelectionKey.OP_WRITE) == SelectionKey.OP_WRITE && getWriteDispatcher(channel) != null)
+        if ((channel.validOps() & ops & SelectionKey.OP_WRITE) == SelectionKey.OP_WRITE && getWriteDispatcher(channel) != null)
             getWriteDispatcher(channel).addOps(channel, SelectionKey.OP_WRITE);
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "addOps(SelectionKey, int)", "end");
     }
@@ -170,13 +163,13 @@ public abstract class AbstractReactor implements IReactor {
     @Override public void register(final SelectableChannel channel, final int ops) {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(),
             "register(SelectableChannel=" + channel + ", int=" + ops + ")", "start");
-        if ((ops & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT && getAcceptDispatcher(channel) != null)
+        if ((channel.validOps() & ops & SelectionKey.OP_ACCEPT) == SelectionKey.OP_ACCEPT && getAcceptDispatcher(channel) != null)
             getAcceptDispatcher(channel).register(channel, SelectionKey.OP_ACCEPT);
-        if ((ops & SelectionKey.OP_CONNECT) == SelectionKey.OP_CONNECT && getConnectDispatcher(channel) != null)
+        if ((channel.validOps() & ops & SelectionKey.OP_CONNECT) == SelectionKey.OP_CONNECT && getConnectDispatcher(channel) != null)
             getConnectDispatcher(channel).register(channel, SelectionKey.OP_CONNECT);
-        if ((ops & SelectionKey.OP_READ) == SelectionKey.OP_READ && getReadDispatcher(channel) != null)
+        if ((channel.validOps() & ops & SelectionKey.OP_READ) == SelectionKey.OP_READ && getReadDispatcher(channel) != null)
             getReadDispatcher(channel).register(channel, SelectionKey.OP_READ);
-        if ((ops & SelectionKey.OP_WRITE) == SelectionKey.OP_WRITE && getWriteDispatcher(channel) != null)
+        if ((channel.validOps() & ops & SelectionKey.OP_WRITE) == SelectionKey.OP_WRITE && getWriteDispatcher(channel) != null)
             getWriteDispatcher(channel).register(channel, SelectionKey.OP_WRITE);
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "register(SelectableChannel, int)", "end");
     }
@@ -292,10 +285,18 @@ public abstract class AbstractReactor implements IReactor {
     }
 
     /**
+     * Gets the selector fail limit.
+     * @param dispatcher the dispatcher
+     * @return the selector fail limit
+     */
+    abstract protected int getSelectorFailLimit(ISelectorDispatcher dispatcher);
+
+    /**
      * Gets the selector time out.
+     * @param dispatcher the dispatcher
      * @return the selector time out
      */
-    protected long getSelectorTimeOut() {
+    protected long getSelectorTimeOut(final ISelectorDispatcher dispatcher) {
         return 3000L;
     }
 
@@ -309,78 +310,78 @@ public abstract class AbstractReactor implements IReactor {
 
     /**
      * Hand off after accept.
+     * @param dispatcher the dispatcher
      * @param channel the channel
      */
-    abstract protected void handOffAfterAccept(SocketChannel channel);
+    abstract protected void handOffAfterAccept(ISelectorDispatcher dispatcher, SocketChannel channel);
 
     /**
      * Hand off after connect.
+     * @param dispatcher the dispatcher
      * @param channel the channel
      */
-    abstract protected void handOffAfterConnect(SocketChannel channel);
+    abstract protected void handOffAfterConnect(ISelectorDispatcher dispatcher, SocketChannel channel);
 
     /**
      * Hand off after read.
+     * @param dispatcher the dispatcher
      * @param channel the channel
      */
-    abstract protected void handOffAfterRead(SocketChannel channel);
+    abstract protected void handOffAfterRead(ISelectorDispatcher dispatcher, SocketChannel channel);
 
     /**
      * Hand off after write.
+     * @param dispatcher the dispatcher
      * @param channel the channel
      */
-    abstract protected void handOffAfterWrite(SocketChannel channel);
+    abstract protected void handOffAfterWrite(ISelectorDispatcher dispatcher, SocketChannel channel);
 
     /**
      * Inits the socket.
+     * @param dispatcher the dispatcher
      * @param socket the socket
      */
-    protected void initSocket(final Socket socket) {
-    }
-
-    /**
-     * Checks if is connected.
-     * @param channel the channel
-     * @return true, if is connected
-     * @throws IOException Signals that an I/O exception has occurred.
-     */
-    protected final boolean isConnected(final SocketChannel channel) throws IOException {
-        return channel != null && channel.finishConnect();
-    }
+    abstract protected void initSocket(ISelectorDispatcher dispatcher, final Socket socket);
 
     /**
      * On connection closed.
+     * @param dispatcher the dispatcher
      * @param channel the channel
      */
-    abstract protected void onConnectionClosed(final SelectableChannel channel);
+    abstract protected void onConnectionClosed(ISelectorDispatcher dispatcher, final SelectableChannel channel);
 
     /**
      * On connection connected.
+     * @param dispatcher the dispatcher
      * @param channel the channel
      */
-    abstract protected void onConnectionConnected(final SelectableChannel channel);
+    abstract protected void onConnectionConnected(ISelectorDispatcher dispatcher, final SelectableChannel channel);
 
     /**
      * On message received.
+     * @param dispatcher the dispatcher
      * @param channel the channel
      * @param msg the msg
      */
-    abstract protected void onMessageReceived(final SocketChannel channel, final byte[] msg);
+    abstract protected void onMessageReceived(ISelectorDispatcher dispatcher, final SocketChannel channel, final byte[] msg);
 
     /**
      * On message sent.
+     * @param dispatcher the dispatcher
      * @param channel the channel
      * @param msg the msg
      */
-    abstract protected void onMessageSent(final SocketChannel channel, final byte[] msg);
+    abstract protected void onMessageSent(ISelectorDispatcher dispatcher, final SocketChannel channel, final byte[] msg);
 
     /**
      * channel로 부터 데이터를 읽는다.
+     * @param dispatcher the dispatcher
      * @param channel the channel
      * @return 완결된 하나의 메세지를 다 읽게 되면 true를 반환
      * @throws IOException the IO exception
      */
-    protected byte[] readMessage(final SocketChannel channel) throws IOException {
+    protected byte[] readMessage(final ISelectorDispatcher dispatcher, final SocketChannel channel)
+            throws IOException {
         if (logger.isLoggable(FINER))
             logger.entering(getClass().getName(), "readMessage(SocketChannel=" + channel + ")", "start");
         final IMessageIoHandler handler = getMessageHandler(channel);
@@ -393,11 +394,13 @@ public abstract class AbstractReactor implements IReactor {
 
     /**
      * channel에 메세지들을 전송한다.
+     * @param dispatcher the dispatcher
      * @param channel the channel
      * @return 더 이상 보낼 메세지가 없으면 true를 반환
      * @throws IOException the IO exception
      */
-    protected boolean sendMessage(final SocketChannel channel) throws IOException {
+    protected boolean sendMessage(final ISelectorDispatcher dispatcher, final SocketChannel channel)
+            throws IOException {
         if (logger.isLoggable(FINER))
             logger.entering(getClass().getName(), "writeMessage(SocketChannel=" + channel + ")", "start");
         final IMessageIoHandler handler = getMessageHandler(channel);
@@ -427,385 +430,96 @@ public abstract class AbstractReactor implements IReactor {
     }
 
     /**
-     * The Class SelectorProcessor.
-     * <p/>
-     *
-     * <pre>
-     * run
-     * |-init
-     * |-dispatchLoop(반복)
-     * | |-processBeforeJob
-     * | |-dispatch
-     * | |-processAfterJob
-     * |-destroy
-     * </pre>
+     * The Class DefaultSelectorDispatcher.
      */
-    protected final class DefaultSelectorDispatcher implements ISelectorDispatcher {
-        /** The selector_. */
-        protected Selector selector_;
-        /** The change queue_. */
-        private Queue<ChangeRequest> changeQueue_ = null;
-        /** The is continue_. */
-        private volatile boolean isContinue_ = false;
-        /** The name_. */
-        private final String name_;
-        /** The executor_. */
-        private final ExecutorService executor_;
-        /** The dispatcher thread_. */
-        private Thread dispatcherThread_;
-
+    private final class DefaultSelectorDispatcher extends AbstractSelectorDispatcher {
         /**
          * Instantiates a new selector dispatcher.
          * @param name the name
          * @param dispatchExecutor the dispatch executor
          */
         protected DefaultSelectorDispatcher(final String name, final ExecutorService dispatchExecutor) {
-            name_ = name;
-            executor_ = dispatchExecutor;
+            super(name, dispatchExecutor);
         }
 
         /** {@inheritDoc} */
-        @Override public void addOps(final SelectableChannel channel, final int ops) {
-            final SelectionKey key = channel.keyFor(selector_);
-            if (key == null) register(channel, ops);
-            else if ((ops ^ key.interestOps() & ops) != 0)
-                addChangeRequest(new ChangeRequest(ChangeType.ADD_OPS, channel, ops));
+        @Override protected void afterChangeRequest() {
+            AbstractReactor.this.afterChangeRequest(this);
         }
 
         /** {@inheritDoc} */
-        @Override public void changeOps(final SelectableChannel channel, final int ops) {
-            throw new UnsupportedOperationException();
-            //            final SelectionKey key = channel.keyFor(selector_);
-            //            if (key == null) register(channel, ops);
-            //            else if (key.interestOps() != ops)
-            //                addChangeRequest(new ChangeRequest(ChangeType.CHANGE_OPS, channel, ops));
+        @Override protected void afterEveryDispatch(final SelectableChannel channel, final int readyOps) {
+            AbstractReactor.this.afterEveryDispatch(this, channel, readyOps);
         }
 
         /** {@inheritDoc} */
-        @Override public void closeChannel(final SelectableChannel channel) {
-            addChangeRequest(new ChangeRequest(ChangeType.CLOSE_CHANNEL, channel, -1));
+        @Override protected void beforeChangeRequest() {
+            AbstractReactor.this.beforeChangeRequest(this);
         }
 
         /** {@inheritDoc} */
-        @Override public void deregister(final SelectableChannel channel) {
-            if (channel.keyFor(selector_) != null)
-                addChangeRequest(new ChangeRequest(ChangeType.DEREGISTER, channel, -1));
+        @Override protected int getSelectorFailLimit() {
+            return AbstractReactor.this.getSelectorFailLimit(this);
         }
 
         /** {@inheritDoc} */
-        @Override public void destroy() {
-            try {
-                if (selector_ != null) selector_.close();
-            } catch (final IOException ex) {
-                logger.logp(SEVERE, getClass().getName(), "destroy()", ex.getMessage(), ex);
-            }
-            if (changeQueue_ != null) {
-                final Queue<ChangeRequest> queue = changeQueue_;
-                changeQueue_ = null;
-                queue.clear();
-            }
+        @Override protected long getSelectorTimeOut() {
+            return AbstractReactor.this.getSelectorTimeOut(this);
         }
 
         /** {@inheritDoc} */
-        @Override public SelectableChannel handleAccept(final SelectionKey key) throws IOException {
-            final SocketChannel channel = accept(key);
-            if (isConnected(channel)) {
-                initSocket(channel.socket());
-                onConnectionConnected(channel);
-                handOffAfterAccept(channel);
-            }
-            return channel;
+        @Override protected void handOffAfterAccept(final SocketChannel channel) {
+            AbstractReactor.this.handOffAfterAccept(this, channel);
         }
 
         /** {@inheritDoc} */
-        @Override public void handleConnect(final SelectionKey key) throws IOException {
-            final SocketChannel channel = (SocketChannel) key.channel();
-            if (isConnected(channel)) {
-                removeOps(channel, SelectionKey.OP_CONNECT);
-                initSocket(channel.socket());
-                onConnectionConnected(channel);
-                handOffAfterConnect(channel);
-            }
+        @Override protected void handOffAfterConnect(final SocketChannel channel) {
+            AbstractReactor.this.handOffAfterConnect(this, channel);
         }
 
         /** {@inheritDoc} */
-        @Override public void handleRead(final SelectionKey key) throws IOException {
-            final SocketChannel channel = (SocketChannel) key.channel();
-            byte[] msg = null;
-            if ((msg = readMessage(channel)) != null) {
-                //                removeOps(channel, SelectionKey.OP_READ);
-                onMessageReceived(channel, msg);
-                handOffAfterRead(channel);
-            }
+        @Override protected void handOffAfterRead(final SocketChannel channel) {
+            AbstractReactor.this.handOffAfterRead(this, channel);
         }
 
         /** {@inheritDoc} */
-        @Override public void handleWrite(final SelectionKey key) throws IOException {
-            final SocketChannel channel = (SocketChannel) key.channel();
-            if (sendMessage(channel)) {
-                removeOps(channel, SelectionKey.OP_WRITE);
-                handOffAfterWrite(channel);
-            }
+        @Override protected void handOffAfterWrite(final SocketChannel channel) {
+            AbstractReactor.this.handOffAfterWrite(this, channel);
         }
 
         /** {@inheritDoc} */
-        @Override public void init() {
-            if (!isContinue()) throw new IllegalStateException();
-            dispatcherThread_ = Thread.currentThread();
-            if (changeQueue_ == null) changeQueue_ = new LinkedBlockingQueue<ChangeRequest>();
-            try {
-                selector_ = Selector.open();
-            } catch (final IOException ex) {
-                logger.logp(SEVERE, getClass().getName(), "init()", "", ex);
-            }
+        @Override protected void initSocket(final Socket socket) {
+            AbstractReactor.this.initSocket(this, socket);
         }
 
         /** {@inheritDoc} */
-        @Override public boolean isRegisted(final SelectableChannel channel) {
-            return channel.keyFor(selector_) == null;
+        @Override protected void onConnectionClosed(final SelectableChannel channel) {
+            AbstractReactor.this.onConnectionClosed(this, channel);
         }
 
         /** {@inheritDoc} */
-        @Override public boolean isRegisted(final SelectableChannel channel, final int ops) {
-            final SelectionKey key = channel.keyFor(selector_);
-            if (key != null) {
-                final int interestOps = key.interestOps();
-                return (interestOps & ops) == ops;
-            }
-            return false;
+        @Override protected void onConnectionConnected(final SelectableChannel channel) {
+            AbstractReactor.this.onConnectionConnected(this, channel);
         }
 
         /** {@inheritDoc} */
-        @Override public void register(final SelectableChannel channel, final int ops) {
-            if (channel.keyFor(selector_) != null) addOps(channel, ops);
-            else addChangeRequest(new ChangeRequest(ChangeType.REGISTER, channel, ops));
+        @Override protected void onMessageReceived(final SocketChannel channel, final byte[] msg) {
+            AbstractReactor.this.onMessageReceived(this, channel, msg);
         }
 
         /** {@inheritDoc} */
-        @Override public void removeOps(final SelectableChannel channel, final int ops) {
-            final SelectionKey key = channel.keyFor(selector_);
-            if (key != null && (key.interestOps() & ops) != 0)
-                addChangeRequest(new ChangeRequest(ChangeType.REMOVE_OPS, channel, ops));
+        @Override protected void onMessageSent(final SocketChannel channel, final byte[] msg) {
+            AbstractReactor.this.onMessageSent(this, channel, msg);
         }
 
         /** {@inheritDoc} */
-        @Override public void run() {
-            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "run()", "start");
-            init();
-            dispatchLoop();
-            destroy();
-            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "run()", "end");
+        @Override protected byte[] readMessage(final SocketChannel channel) throws IOException {
+            return AbstractReactor.this.readMessage(this, channel);
         }
 
         /** {@inheritDoc} */
-        @Override public void start() {
-            if (!isContinue()) {
-                isContinue_ = true;
-                if (executor_ != null) executor_.execute(this);
-            }
-        }
-
-        /** {@inheritDoc} */
-        @Override public void stop() {
-            if (isContinue()) {
-                isContinue_ = false;
-                wakeupSelector();
-            }
-        }
-
-        /** {@inheritDoc} */
-        @Override public String toString() {
-            return name_;
-        }
-
-        /** {@inheritDoc} */
-        @Override public void wakeupSelector() {
-            if (dispatcherThread_ != null && dispatcherThread_ != Thread.currentThread()) selector_.wakeup();
-        }
-
-        /**
-         * Accept.
-         * @param key the key
-         * @return the socket channel
-         * @throws IOException Signals that an I/O exception has occurred.
-         */
-        protected SocketChannel accept(final SelectionKey key) throws IOException {
-            final ServerSocketChannel serverChannel = (ServerSocketChannel) key.channel();
-            final SocketChannel channel = serverChannel.accept();
-            channel.configureBlocking(false);
-            return channel;
-        }
-
-        /**
-         * Adds the change request.
-         * @param request the request
-         */
-        private final void addChangeRequest(final ChangeRequest request) {
-            if (logger.isLoggable(FINER))
-                logger.entering(getClass().getName(), "addChangeRequest(ChangeRequest=" + request + ")", "start");
-            changeQueue_.add(request);
-            wakeupSelector();
-            if (logger.isLoggable(FINER))
-                logger.exiting(getClass().getName(), "addChangeRequest(ChangeRequest)", "end");
-        }
-
-        /** Select one. */
-        private final void dispatch() {
-            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "dispatch()", "start");
-            try {
-                final int nKeys = selector_.select(getSelectorTimeOut());
-                if (nKeys < 1) return;
-                final Iterator<SelectionKey> selectedKeys = selector_.selectedKeys().iterator();
-                while (selectedKeys.hasNext()) {
-                    final SelectionKey key = selectedKeys.next();
-                    selectedKeys.remove();
-                    final SelectableChannel channel = processSelectedKey(key);
-                    if (channel != null) afterEveryDispatch(this, channel, key.readyOps());
-                }
-            } catch (final IOException ex) {
-                logger.logp(SEVERE, getClass().getName(), "dispatch()", "", ex);
-            }
-            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "dispatch()", "end");
-        }
-
-        /** Dispatch loop. */
-        private final void dispatchLoop() {
-            if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "dispatchLoop()", "start");
-            while (isContinue())
-                try {
-                    beforeChangeRequest(this);
-                    processChangeRequest();
-                    afterChangeRequest(this);
-                    dispatch();
-                } catch (final ClosedSelectorException e) {
-                    logger.logp(SEVERE, getClass().getName(), "dispatchLoop()", "", e);
-                    break;
-                } catch (final Throwable t) {
-                    logger.logp(SEVERE, getClass().getName(), "dispatchLoop()", "", t);
-                }
-            if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "dispatchLoop()", "end");
-        }
-
-        /**
-         * Checks if is continue.
-         * @return true, if checks if is continue
-         */
-        private final boolean isContinue() {
-            return isContinue_;
-        }
-
-        /** Process change request. */
-        private final void processChangeRequest() {
-            ChangeRequest request = null;
-            while ((request = changeQueue_.poll()) != null) {
-                final SelectionKey key = request.channel.keyFor(selector_);
-                if (logger.isLoggable(FINEST)) logger.logp(FINEST, getClass().getName(), "processChangeRequest()",
-                    "change request(" + request + "), selection key(" + key + ")");
-                switch (request.type) {
-                case ADD_OPS:
-                    if (key != null && key.isValid()) key.interestOps(key.interestOps() | request.ops);
-                    break;
-                case CHANGE_OPS:
-                    if (key != null && key.isValid()) key.interestOps(request.ops);
-                    break;
-                case REMOVE_OPS:
-                    if (key != null && key.isValid())
-                        key.interestOps(key.interestOps() ^ key.interestOps() & request.ops);
-                    break;
-                case REGISTER:
-                    try {
-                        request.channel.register(selector_, request.ops);
-                    } catch (final ClosedChannelException ex) {
-                        logger.logp(WARNING, getClass().getName(), "processChangeRequest()",
-                            "REGESTER:" + ex.getMessage(), ex);
-                    }
-                    break;
-                case CLOSE_CHANNEL:
-                    try {
-                        request.channel.close();
-                        onConnectionClosed(request.channel);
-                    } catch (final IOException ex) {
-                        logger.logp(WARNING, getClass().getName(), "processChangeRequest()",
-                            "CLOSE_CHANNEL" + ex.getMessage(), ex);
-                    }
-                    //break;
-                case DEREGISTER:
-                    if (key != null) {
-                        if (key.isValid()) key.interestOps(0);
-                        key.attach(null);
-                        key.cancel();
-                    }
-                    break;
-                }
-            }
-        }
-
-        /**
-         * Process selected key.
-         * @param key the key
-         * @return the selectable channel
-         * @throws IOException Signals that an I/O exception has occurred.
-         */
-        private SelectableChannel processSelectedKey(final SelectionKey key) throws IOException {
-            SelectableChannel channel = key.channel();
-            try {
-                if (!key.isValid()) return null;
-                if (key.isAcceptable()) channel = handleAccept(key);
-                if (key.isConnectable()) handleConnect(key);
-                if (key.isReadable()) handleRead(key);
-                if (key.isWritable()) handleWrite(key);
-            } catch (final CancelledKeyException cke) {
-                logger.logp(WARNING, getClass().getName(), "processSelectedKey()", cke.getMessage(), cke);
-                closeChannel(key.channel());
-            }
-            return channel;
+        @Override protected boolean sendMessage(final SocketChannel channel) throws IOException {
+            return AbstractReactor.this.sendMessage(this, channel);
         }
     }//end of Dispatcher
-
-    /** The Class ChangeRequest. */
-    private class ChangeRequest {
-        /** The type_. */
-        private final ChangeType type;
-        /** The channel_. */
-        private final SelectableChannel channel;
-        /** The ops. */
-        private final int ops;
-
-        /**
-         * The Constructor.
-         * @param type the type
-         * @param channel the channel
-         * @param ops the ops
-         */
-        private ChangeRequest(final ChangeType type, final SelectableChannel channel, final int ops) {
-            this.type = type;
-            this.channel = channel;
-            this.ops = ops;
-        }
-
-        /** {@inheritDoc} */
-        @Override public String toString() {
-            final StringBuilder sb = new StringBuilder();
-            sb.append("type=" + type);
-            if (ops > 0) sb.append(", ops=").append(ops);
-            if (channel != null) sb.append(", channel=").append(channel);
-            return sb.toString();
-        }
-    }//end ChangeRequest
-
-    /** The Enum ChangeType. */
-    private enum ChangeType {
-        /** The register. */
-        REGISTER,
-        /** The deregister. */
-        DEREGISTER,
-        /** The add ops. */
-        ADD_OPS,
-        /** The change ops. */
-        CHANGE_OPS,
-        /** The remove ops. */
-        REMOVE_OPS,
-        /** The close channel. */
-        CLOSE_CHANNEL;
-    }//end ChangeType
 }

@@ -17,7 +17,6 @@ import static java.util.logging.Level.*;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.net.SocketAddress;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
@@ -28,10 +27,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 import com.tmax.probus.nio.api.IConnectionEventListener;
+import com.tmax.probus.nio.api.IEndPointHandler;
 import com.tmax.probus.nio.api.IMessageEventListener;
 import com.tmax.probus.nio.api.IMessageIoHandler;
+import com.tmax.probus.nio.api.ISelectorDispatcher;
 import com.tmax.probus.nio.api.ISession;
-import com.tmax.probus.nio.api.IEndPointHandler;
 import com.tmax.probus.nio.api.ISessionManager;
 
 
@@ -48,7 +48,6 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
     @Override public ISession createSession(final SelectableChannel channel) {
         final ISession session = newSession(channel);
         SocketChannel c = (SocketChannel) channel;
-        Socket socket = c.socket();
         final IEndPointHandler sessionHandler = sessionHandlerMap_.get(channel);
         try {
             if (sessionHandler != null) sessionHandler.sessionCreated(session);
@@ -92,13 +91,6 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
         return channelSessionMap_.remove(channel);
     }
 
-    /** {@inheritDoc} */
-    @Override protected final SocketChannel accept(final SelectionKey key) throws IOException {
-        SocketChannel channel = super.accept(key);
-        createSession(channel);
-        return channel;
-    }
-
     /**
      * Bind.
      * @param localAddr the local addr
@@ -114,7 +106,7 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
         server.configureBlocking(false);
         server.socket().bind(localAddr);
         sessionHandlerMap_.put(localAddr, sessionHandler);
-        getAcceptDispatcher().register(server, SelectionKey.OP_ACCEPT);
+        getAcceptDispatcher(server).register(server, SelectionKey.OP_ACCEPT);
         if (logger.isLoggable(FINER))
             logger.exiting(getClass().getName(), "bind(InetSocketAddress)", "end - return value=" + server);
         return server;
@@ -171,22 +163,22 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
     }
 
     /** {@inheritDoc} */
-    @Override protected void handOffAfterAccept(final SocketChannel channel) {
+    @Override protected void handOffAfterAccept(ISelectorDispatcher dispatcher, final SocketChannel channel) {
         getSession(channel).afterAccept(this);
     }
 
     /** {@inheritDoc} */
-    @Override protected void handOffAfterConnect(final SocketChannel channel) {
+    @Override protected void handOffAfterConnect(ISelectorDispatcher dispatcher, final SocketChannel channel) {
         getSession(channel).afterConnect(this);
     }
 
     /** {@inheritDoc} */
-    @Override protected void handOffAfterRead(final SocketChannel channel) {
+    @Override protected void handOffAfterRead(ISelectorDispatcher dispatcher, final SocketChannel channel) {
         getSession(channel).afterRead(this);
     }
 
     /** {@inheritDoc} */
-    @Override protected void handOffAfterWrite(final SocketChannel channel) {
+    @Override protected void handOffAfterWrite(ISelectorDispatcher dispatcher, final SocketChannel channel) {
         getSession(channel).afterWrite(this);
     }
 

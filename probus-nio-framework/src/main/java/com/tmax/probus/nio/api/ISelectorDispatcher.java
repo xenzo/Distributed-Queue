@@ -31,26 +31,26 @@ public interface ISelectorDispatcher extends ISelectorOperation, ILifeCycle, Run
     /**
      * Handle connect.
      * @param key the key
+     * @return the selectable channel
      * @throws IOException Signals that an I/O exception has occurred.
      */
-    void handleConnect(SelectionKey key) throws IOException;
+    SelectableChannel handleConnect(SelectionKey key) throws IOException;
 
     /**
      * Handle read.
      * @param key the key
+     * @return the selectable channel
      * @throws IOException Signals that an I/O exception has occurred.
      */
-    void handleRead(SelectionKey key) throws IOException;
+    SelectableChannel handleRead(SelectionKey key) throws IOException;
 
     /**
      * Handle write.
      * @param key the key
+     * @return the selectable channel
      * @throws IOException Signals that an I/O exception has occurred.
      */
-    void handleWrite(SelectionKey key) throws IOException;
-
-    /** Wakeup selector. */
-    void wakeupSelector();
+    SelectableChannel handleWrite(SelectionKey key) throws IOException;
 
     /**
      * Checks if is registed.
@@ -66,4 +66,13 @@ public interface ISelectorDispatcher extends ISelectorOperation, ILifeCycle, Run
      * @return true, if is registed
      */
     boolean isRegisted(SelectableChannel channel, int ops);
+
+    /**
+     * Checks if is running.
+     * @return true, if is running
+     */
+    boolean isRunning();
+
+    /** Wakeup selector. */
+    void wakeupSelector();
 }
