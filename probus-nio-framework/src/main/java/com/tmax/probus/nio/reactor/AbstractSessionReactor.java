@@ -12,8 +12,7 @@
  */
 package com.tmax.probus.nio.reactor;
 
-
-import static java.util.logging.Level.*;
+import com.tmax.probus.nio.api.*;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -26,14 +25,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
-import com.tmax.probus.nio.api.IConnectionEventListener;
-import com.tmax.probus.nio.api.IEndPointHandler;
-import com.tmax.probus.nio.api.IMessageEventListener;
-import com.tmax.probus.nio.api.IMessageIoHandler;
-import com.tmax.probus.nio.api.ISelectorDispatcher;
-import com.tmax.probus.nio.api.ISession;
-import com.tmax.probus.nio.api.ISessionManager;
-
+import static java.util.logging.Level.FINER;
+import static java.util.logging.Level.WARNING;
 
 /** The Class AbstractSessionReactor. */
 public abstract class AbstractSessionReactor extends AbstractReactor implements ISessionManager {
@@ -122,7 +115,7 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
     protected ISession connect(final InetSocketAddress remoteAddr, final InetSocketAddress localAddr,
             IEndPointHandler sessionHandler) throws IOException {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(),
-            "connect(InetSocketAddress=" + remoteAddr + ", InetSocketAddress=" + localAddr + ")", "start");
+                "connect(InetSocketAddress=" + remoteAddr + ", InetSocketAddress=" + localAddr + ")", "start");
         SocketChannel channel = SocketChannel.open();
         channel.configureBlocking(false);
         channel.socket().bind(localAddr);
@@ -135,7 +128,7 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
         register(channel, SelectionKey.OP_CONNECT);
         if (logger.isLoggable(FINER))
             logger.exiting(getClass().getName(), "connect(InetSocketAddress, InetSocketAddress)",
-                "end - return value=" + session);
+                    "end - return value=" + session);
         return session;
     }
 

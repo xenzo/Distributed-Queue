@@ -12,19 +12,11 @@
  */
 package com.tmax.probus.nio.reactor;
 
-
-import static java.util.logging.Level.*;
+import com.tmax.probus.nio.api.ISelectorDispatcher;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.nio.channels.CancelledKeyException;
-import java.nio.channels.ClosedChannelException;
-import java.nio.channels.ClosedSelectorException;
-import java.nio.channels.SelectableChannel;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
+import java.nio.channels.*;
 import java.util.Iterator;
 import java.util.Queue;
 import java.util.Set;
@@ -32,13 +24,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Logger;
 
-import com.tmax.probus.nio.api.ISelectorDispatcher;
-
+import static java.util.logging.Level.*;
 
 /**
  * The Class AbstractSelectorDispatcher.
  * <p/>
- * 
+ * <p/>
  * <pre>
  * run
  * |-init
@@ -258,10 +249,7 @@ public abstract class AbstractSelectorDispatcher implements ISelectorDispatcher 
         return channel;
     }
 
-    /**
-     * After change request.
-     * @param dispatcher the dispatcher
-     */
+    /** After change request. */
     abstract protected void afterChangeRequest();
 
     /**
@@ -271,10 +259,7 @@ public abstract class AbstractSelectorDispatcher implements ISelectorDispatcher 
      */
     abstract protected void afterEveryDispatch(final SelectableChannel channel, final int readyOps);
 
-    /**
-     * Before change request.
-     * @param dipatcher the dipatcher
-     */
+    /** Before change request. */
     abstract protected void beforeChangeRequest();
 
     /**
@@ -347,13 +332,6 @@ public abstract class AbstractSelectorDispatcher implements ISelectorDispatcher 
      * @param msg the msg
      */
     abstract protected void onMessageReceived(final SocketChannel channel, final byte[] msg);
-
-    /**
-     * On message sent.
-     * @param channel the channel
-     * @param msg the msg
-     */
-    abstract protected void onMessageSent(final SocketChannel channel, final byte[] msg);
 
     /**
      * channel로 부터 데이터를 읽는다.
@@ -452,7 +430,7 @@ public abstract class AbstractSelectorDispatcher implements ISelectorDispatcher 
         while ((request = changeQueue_.poll()) != null) {
             final SelectionKey key = request.channel.keyFor(selector_);
             if (logger.isLoggable(FINEST)) logger.logp(FINEST, getClass().getName(), "processChangeRequest()",
-                "change request(" + request + "), selection key(" + key + ")");
+                    "change request(" + request + "), selection key(" + key + ")");
             switch (request.type) {
             case ADD_OPS:
                 if (key != null && key.isValid()) key.interestOps(key.interestOps() | request.ops);
@@ -469,7 +447,7 @@ public abstract class AbstractSelectorDispatcher implements ISelectorDispatcher 
                     request.channel.register(selector_, request.ops);
                 } catch (final ClosedChannelException ex) {
                     logger.logp(WARNING, getClass().getName(), "processChangeRequest()",
-                        "REGESTER:" + ex.getMessage(), ex);
+                            "REGESTER:" + ex.getMessage(), ex);
                 }
                 break;
             case CLOSE_CHANNEL:
@@ -478,7 +456,7 @@ public abstract class AbstractSelectorDispatcher implements ISelectorDispatcher 
                     onConnectionClosed(request.channel);
                 } catch (final IOException ex) {
                     logger.logp(WARNING, getClass().getName(), "processChangeRequest()",
-                        "CLOSE_CHANNEL" + ex.getMessage(), ex);
+                            "CLOSE_CHANNEL" + ex.getMessage(), ex);
                 }
                 //break;
             case DEREGISTER:
