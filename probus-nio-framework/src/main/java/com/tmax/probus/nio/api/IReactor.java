@@ -26,23 +26,9 @@ public interface IReactor extends ISelectorOperation, ILifeCycle {
     ISelectorDispatcher getAcceptDispatcher(SelectableChannel channel);
 
     /**
-     * Connect 이벤트를 처리할 ISelectorProcessor객체를 반환한다.
-     * @param channel the channel
-     * @return the connect processor
-     */
-    ISelectorDispatcher getConnectDispatcher(SelectableChannel channel);
-
-    /**
-     * Read이벤트를 처리할 ISelectorProcessor객체를 반환한다.
+     * Read/Write/Connect 이벤트를 처리할 ISelectorProcessor객체를 반환한다.
      * @param channel the channel
      * @return the read processor
      */
-    ISelectorDispatcher getReadDispatcher(SelectableChannel channel);
-
-    /**
-     * Write이벤트를 처리할 ISelectorProcessor객체를 반환한다.
-     * @param channel the channel
-     * @return the read processor
-     */
-    ISelectorDispatcher getWriteDispatcher(SelectableChannel channel);
+    ISelectorDispatcher getSlaveDispatcher(SelectableChannel channel);
 }

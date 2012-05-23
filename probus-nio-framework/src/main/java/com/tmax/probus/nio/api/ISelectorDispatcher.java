@@ -75,4 +75,10 @@ public interface ISelectorDispatcher extends ISelectorOperation, ILifeCycle, Run
 
     /** Wakeup selector. */
     void wakeupSelector();
+
+    /**
+     * Gets the key count.
+     * @return the key count
+     */
+    int getKeyCount();
 }

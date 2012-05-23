@@ -12,7 +12,8 @@
  */
 package com.tmax.probus.nio.reactor;
 
-import com.tmax.probus.nio.api.*;
+
+import static java.util.logging.Level.*;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -23,15 +24,18 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
 
-import static java.util.logging.Level.FINER;
-import static java.util.logging.Level.WARNING;
+import com.tmax.probus.nio.api.IConnectionEventListener;
+import com.tmax.probus.nio.api.IEndPointHandler;
+import com.tmax.probus.nio.api.IMessageEventListener;
+import com.tmax.probus.nio.api.IMessageIoHandler;
+import com.tmax.probus.nio.api.ISelectorDispatcher;
+import com.tmax.probus.nio.api.ISession;
+import com.tmax.probus.nio.api.ISessionManager;
+
 
 /** The Class AbstractSessionReactor. */
 public abstract class AbstractSessionReactor extends AbstractReactor implements ISessionManager {
-    /** Logger for this class */
-    private final transient Logger logger = Logger.getLogger("com.tmax.probus.nio.reactor");
     /** The channel session map */
     private Map<SelectableChannel, ISession> channelSessionMap_;
     /** The session handler map */
@@ -40,7 +44,6 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
     /** {@inheritDoc} */
     @Override public ISession createSession(final SelectableChannel channel) {
         final ISession session = newSession(channel);
-        SocketChannel c = (SocketChannel) channel;
         final IEndPointHandler sessionHandler = sessionHandlerMap_.get(channel);
         try {
             if (sessionHandler != null) sessionHandler.sessionCreated(session);
@@ -115,7 +118,7 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
     protected ISession connect(final InetSocketAddress remoteAddr, final InetSocketAddress localAddr,
             IEndPointHandler sessionHandler) throws IOException {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(),
-                "connect(InetSocketAddress=" + remoteAddr + ", InetSocketAddress=" + localAddr + ")", "start");
+            "connect(InetSocketAddress=" + remoteAddr + ", InetSocketAddress=" + localAddr + ")", "start");
         SocketChannel channel = SocketChannel.open();
         channel.configureBlocking(false);
         channel.socket().bind(localAddr);
@@ -128,7 +131,7 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
         register(channel, SelectionKey.OP_CONNECT);
         if (logger.isLoggable(FINER))
             logger.exiting(getClass().getName(), "connect(InetSocketAddress, InetSocketAddress)",
-                    "end - return value=" + session);
+                "end - return value=" + session);
         return session;
     }
 

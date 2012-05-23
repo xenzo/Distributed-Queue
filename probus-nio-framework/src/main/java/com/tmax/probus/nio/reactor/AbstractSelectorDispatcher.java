@@ -12,11 +12,22 @@
  */
 package com.tmax.probus.nio.reactor;
 
-import com.tmax.probus.nio.api.ISelectorDispatcher;
+
+import static java.util.logging.Level.FINER;
+import static java.util.logging.Level.FINEST;
+import static java.util.logging.Level.SEVERE;
+import static java.util.logging.Level.WARNING;
 
 import java.io.IOException;
 import java.net.Socket;
-import java.nio.channels.*;
+import java.nio.channels.CancelledKeyException;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.ClosedSelectorException;
+import java.nio.channels.SelectableChannel;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.Queue;
 import java.util.Set;
@@ -24,12 +35,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.Logger;
 
-import static java.util.logging.Level.*;
+import com.tmax.probus.nio.api.ISelectorDispatcher;
+
 
 /**
  * The Class AbstractSelectorDispatcher.
  * <p/>
  * <p/>
+ *
  * <pre>
  * run
  * |-init
@@ -96,6 +109,14 @@ public abstract class AbstractSelectorDispatcher implements ISelectorDispatcher 
 
     /** {@inheritDoc} */
     @Override public void destroy() {
+        for (SelectionKey key : selector_.keys()) {
+            try {
+                key.channel().close();
+                key.cancel();
+            } catch (IOException ex) {
+                logger.log(WARNING, "" + ex.getMessage(), ex);
+            }
+        }
         try {
             if (selector_ != null) selector_.close();
         } catch (final IOException ex) {
@@ -136,7 +157,7 @@ public abstract class AbstractSelectorDispatcher implements ISelectorDispatcher 
         final SocketChannel channel = (SocketChannel) key.channel();
         byte[] msg = null;
         if ((msg = readMessage(channel)) != null) {
-            removeOps(channel, SelectionKey.OP_READ);
+            //            removeOps(channel, SelectionKey.OP_READ);
             onMessageReceived(channel, msg);
             handOffAfterRead(channel);
         }
@@ -147,7 +168,7 @@ public abstract class AbstractSelectorDispatcher implements ISelectorDispatcher 
     @Override public SelectableChannel handleWrite(final SelectionKey key) throws IOException {
         final SocketChannel channel = (SocketChannel) key.channel();
         if (sendMessage(channel)) {
-            removeOps(channel, SelectionKey.OP_WRITE);
+            //            removeOps(channel, SelectionKey.OP_WRITE); // XXX write시에 OP_WRITE등록과 선/후가 바뀌면 어쩔것인가.
             handOffAfterWrite(channel);
         }
         return channel;
@@ -183,6 +204,11 @@ public abstract class AbstractSelectorDispatcher implements ISelectorDispatcher 
     /** {@inheritDoc} */
     @Override public boolean isRunning() {
         return isRunning_;
+    }
+
+    /** {@inheritDoc} */
+    @Override public int getKeyCount() {
+        return selector_.keys().size();
     }
 
     /** {@inheritDoc} */
@@ -387,7 +413,7 @@ public abstract class AbstractSelectorDispatcher implements ISelectorDispatcher 
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "dispatchLoop()", "start");
         while (isContinue())
             try {
-                if (selectorErrorCount_ > getSelectorFailLimit()) {
+                if (getSelectorFailLimit() > 0 && selectorErrorCount_ > getSelectorFailLimit()) {
                     try {
                         replaceSelector();
                     } catch (final IOException ex) {
@@ -430,33 +456,35 @@ public abstract class AbstractSelectorDispatcher implements ISelectorDispatcher 
         while ((request = changeQueue_.poll()) != null) {
             final SelectionKey key = request.channel.keyFor(selector_);
             if (logger.isLoggable(FINEST)) logger.logp(FINEST, getClass().getName(), "processChangeRequest()",
-                    "change request(" + request + "), selection key(" + key + ")");
+                "change request(" + request + "), selection key(" + key + ")");
             switch (request.type) {
             case ADD_OPS:
-                if (key != null && key.isValid()) key.interestOps(key.interestOps() | request.ops);
+                if (key != null && key.isValid()) key.interestOps(key.interestOps() | (request.channel.validOps() & request.ops));
                 break;
             case CHANGE_OPS:
-                if (key != null && key.isValid()) key.interestOps(request.ops);
+                if (key != null && key.isValid()) key.interestOps(request.channel.validOps() & request.ops);
                 break;
             case REMOVE_OPS:
                 if (key != null && key.isValid())
-                    key.interestOps(key.interestOps() ^ key.interestOps() & request.ops);
+                    key.interestOps(key.interestOps() ^ (key.interestOps() & request.ops));
                 break;
             case REGISTER:
                 try {
                     request.channel.register(selector_, request.ops);
                 } catch (final ClosedChannelException ex) {
                     logger.logp(WARNING, getClass().getName(), "processChangeRequest()",
-                            "REGESTER:" + ex.getMessage(), ex);
+                        "REGESTER:" + ex.getMessage(), ex);
                 }
                 break;
             case CLOSE_CHANNEL:
-                try {
-                    request.channel.close();
-                    onConnectionClosed(request.channel);
-                } catch (final IOException ex) {
-                    logger.logp(WARNING, getClass().getName(), "processChangeRequest()",
+                if (key != null) {
+                    try {
+                        request.channel.close();
+                        onConnectionClosed(request.channel);
+                    } catch (final IOException ex) {
+                        logger.logp(WARNING, getClass().getName(), "processChangeRequest()",
                             "CLOSE_CHANNEL" + ex.getMessage(), ex);
+                    }
                 }
                 //break;
             case DEREGISTER:
