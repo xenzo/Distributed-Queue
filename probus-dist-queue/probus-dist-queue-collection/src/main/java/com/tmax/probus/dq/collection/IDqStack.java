@@ -12,15 +12,11 @@
  */
 package com.tmax.probus.dq.collection;
 
-
-import java.util.Collection;
-
-
 /**
  * DqCollections에서 반환하는 Stack 구조 인터페이스
  * @param <E> the element type
  */
-public interface IDqStack<E> extends Collection<E> {
+public interface IDqStack<K, E> extends IDqCollection<K, E> {
     /**
      * Pop.
      * @return the e

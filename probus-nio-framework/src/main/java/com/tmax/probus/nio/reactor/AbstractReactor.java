@@ -154,6 +154,18 @@ public abstract class AbstractReactor implements IReactor {
     }
 
     /**
+     * Adds the slave dispatcher.
+     * @param name the name
+     */
+    protected final void addSlaveDispatcher(final String name) {
+        getSlaveDispatchers().add(createSelectorDispatcher(name));
+    }
+
+    protected final void addAcceptDispatcher(final String name) {
+        getAcceptDispatchers().add(createSelectorDispatcher(name));
+    }
+
+    /**
      * Process after jobs.
      * @param dispatcher the dispatcher
      */
@@ -211,6 +223,12 @@ public abstract class AbstractReactor implements IReactor {
     abstract protected Collection<ISelectorDispatcher> getAcceptDispatchers();
 
     /**
+     * Gets the max key count.
+     * @return the max key count
+     */
+    abstract protected int getMaxKeyCount();
+
+    /**
      * Gets the max selector count.
      * @return the max selector count
      */
@@ -229,12 +247,6 @@ public abstract class AbstractReactor implements IReactor {
      * @return the selector fail limit
      */
     abstract protected int getSelectorFailLimit(ISelectorDispatcher dispatcher);
-
-    /**
-     * Gets the max key count.
-     * @return the max key count
-     */
-    abstract protected int getMaxKeyCount();
 
     /**
      * Gets the selector time out.
@@ -345,10 +357,6 @@ public abstract class AbstractReactor implements IReactor {
         if (logger.isLoggable(FINER))
             logger.exiting(getClass().getName(), "writeMessage(SocketChannel)", "end - return value=" + ret);
         return ret;
-    }
-
-    void addSlaveDispatcher(final String name) {
-        getSlaveDispatchers().add(createSelectorDispatcher(name));
     }
 
     /**

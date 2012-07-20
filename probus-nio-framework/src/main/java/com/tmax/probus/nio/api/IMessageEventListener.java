@@ -28,4 +28,6 @@ public interface IMessageEventListener {
      * @param msg the bs
      */
     void eventMessageSent(byte[] msg);
+
+    void eventMessageError();
 }

@@ -17,6 +17,7 @@ import static java.util.logging.Level.*;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.net.SocketAddress;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
@@ -26,27 +27,28 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.tmax.probus.nio.api.IConnectionEventListener;
-import com.tmax.probus.nio.api.IEndPointHandler;
 import com.tmax.probus.nio.api.IMessageEventListener;
 import com.tmax.probus.nio.api.IMessageIoHandler;
 import com.tmax.probus.nio.api.ISelectorDispatcher;
 import com.tmax.probus.nio.api.ISession;
+import com.tmax.probus.nio.api.ISessionHandler;
 import com.tmax.probus.nio.api.ISessionManager;
 
 
 /** The Class AbstractSessionReactor. */
 public abstract class AbstractSessionReactor extends AbstractReactor implements ISessionManager {
-    /** The channel session map */
+    /** The channel session map. */
     private Map<SelectableChannel, ISession> channelSessionMap_;
-    /** The session handler map */
-    private Map<SocketAddress, IEndPointHandler> sessionHandlerMap_;
+    /** The session handler map. */
+    private Map<SocketAddress, ISessionHandler> sessionHandlerMap_;
 
     /** {@inheritDoc} */
     @Override public ISession createSession(final SelectableChannel channel) {
+        final ISessionHandler sessionHandler = getSessionHandler(channel);
+        if (sessionHandler == null) throw new IllegalArgumentException("");
         final ISession session = newSession(channel);
-        final IEndPointHandler sessionHandler = sessionHandlerMap_.get(channel);
         try {
-            if (sessionHandler != null) sessionHandler.sessionCreated(session);
+            sessionHandler.sessionCreated(session);
             putSession(channel, session);
         } catch (final Exception ex) {
             logger.log(WARNING, "" + ex.getMessage(), ex);
@@ -56,14 +58,21 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
 
     /** {@inheritDoc} */
     @Override public void destroy() {
-        super.destroy();
         if (channelSessionMap_ != null) {
-            final Map<SelectableChannel, ISession> channelSessionMap = channelSessionMap_;
+            final Map<SelectableChannel, ISession> tmpSessionMap = channelSessionMap_;
             channelSessionMap_ = null;
-            for (ISession session : channelSessionMap.values())
+            for (final ISession session : tmpSessionMap.values())
                 session.destroy();
-            channelSessionMap.clear();
+            tmpSessionMap.clear();
         }
+        if (sessionHandlerMap_ != null) {
+            final Map<SocketAddress, ISessionHandler> tmpSessionHandlerMap = sessionHandlerMap_;
+            sessionHandlerMap_ = null;
+            for (final ISessionHandler handler : tmpSessionHandlerMap.values())
+                handler.destroy();
+            tmpSessionHandlerMap.clear();
+        }
+        super.destroy();
     }
 
     /** {@inheritDoc} */
@@ -74,6 +83,7 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
     /** {@inheritDoc} */
     @Override public void init() {
         channelSessionMap_ = new ConcurrentHashMap<SelectableChannel, ISession>();
+        sessionHandlerMap_ = new ConcurrentHashMap<SocketAddress, ISessionHandler>();
         super.init();
     }
 
@@ -88,21 +98,32 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
     }
 
     /**
+     * Adds the session handler.
+     * @param address the address
+     * @param handler the handler
+     * @return the i session handler
+     */
+    protected ISessionHandler addSessionHandler(final SocketAddress address, final ISessionHandler handler) {
+        return sessionHandlerMap_.put(address, handler);
+    }
+
+    /**
      * Bind.
      * @param localAddr the local addr
+     * @param sessionHandler the session handler
      * @return the server socket channel
      * @throws IOException Signals that an I/O exception has occurred.
      */
-    protected ServerSocketChannel bind(final InetSocketAddress localAddr, IEndPointHandler sessionHandler)
+    protected ServerSocketChannel bind(final InetSocketAddress localAddr, final ISessionHandler sessionHandler)
             throws IOException {
         if (logger.isLoggable(FINER))
             logger.entering(getClass().getName(), "bind(InetSocketAddress=" + localAddr + ")", "start");
-        ServerSocketChannel server = null;
-        server = ServerSocketChannel.open();
+        ServerSocketChannel server = ServerSocketChannel.open();
         server.configureBlocking(false);
+        initServerSocket(server.socket());
         server.socket().bind(localAddr);
         sessionHandlerMap_.put(localAddr, sessionHandler);
-        getAcceptDispatcher(server).register(server, SelectionKey.OP_ACCEPT);
+        register(server, SelectionKey.OP_ACCEPT);
         if (logger.isLoggable(FINER))
             logger.exiting(getClass().getName(), "bind(InetSocketAddress)", "end - return value=" + server);
         return server;
@@ -112,26 +133,25 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
      * Connect.
      * @param remoteAddr the remote addr
      * @param localAddr the local addr
+     * @param sessionHandler the session handler
      * @return the i session
      * @throws IOException Signals that an I/O exception has occurred.
      */
     protected ISession connect(final InetSocketAddress remoteAddr, final InetSocketAddress localAddr,
-            IEndPointHandler sessionHandler) throws IOException {
+            final ISessionHandler sessionHandler) throws IOException {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(),
             "connect(InetSocketAddress=" + remoteAddr + ", InetSocketAddress=" + localAddr + ")", "start");
-        SocketChannel channel = SocketChannel.open();
+        final SocketChannel channel = SocketChannel.open();
         channel.configureBlocking(false);
         channel.socket().bind(localAddr);
         channel.connect(remoteAddr);
         //
         sessionHandlerMap_.put(remoteAddr, sessionHandler);
         //
-        ISession session = createSession(channel);
-        putSession(channel, session);
+        final ISession session = createSession(channel);
         register(channel, SelectionKey.OP_CONNECT);
-        if (logger.isLoggable(FINER))
-            logger.exiting(getClass().getName(), "connect(InetSocketAddress, InetSocketAddress)",
-                "end - return value=" + session);
+        if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "connect(InetSocketAddress, InetSocketAddress)",
+            "end - return session=" + session);
         return session;
     }
 
@@ -158,32 +178,69 @@ public abstract class AbstractSessionReactor extends AbstractReactor implements 
         return getSession(channel).getMessageHandler();
     }
 
+    /**
+     * Gets the session handler.
+     * @param channel the channel
+     * @return the session handler
+     */
+    protected ISessionHandler getSessionHandler(final SelectableChannel channel) {
+        if (channel instanceof SocketChannel) {
+            final SocketChannel socketChannel = (SocketChannel) channel;
+            ISessionHandler handler = sessionHandlerMap_.get(socketChannel.socket().getLocalAddress());
+            if (handler == null) handler = sessionHandlerMap_.get(socketChannel.socket().getRemoteSocketAddress());
+            return handler;
+        }
+        return null;
+    }
+
+    /**
+     * Gets the session handler.
+     * @param address the address
+     * @return the session handler
+     */
+    protected ISessionHandler getSessionHandler(final SocketAddress address) {
+        return sessionHandlerMap_.get(address);
+    }
+
     /** {@inheritDoc} */
-    @Override protected void handOffAfterAccept(ISelectorDispatcher dispatcher, final SocketChannel channel) {
+    @Override protected void handOffAfterAccept(final ISelectorDispatcher dispatcher, final SocketChannel channel) {
         getSession(channel).afterAccept(this);
     }
 
     /** {@inheritDoc} */
-    @Override protected void handOffAfterConnect(ISelectorDispatcher dispatcher, final SocketChannel channel) {
+    @Override protected void handOffAfterConnect(final ISelectorDispatcher dispatcher, final SocketChannel channel) {
         getSession(channel).afterConnect(this);
     }
 
     /** {@inheritDoc} */
-    @Override protected void handOffAfterRead(ISelectorDispatcher dispatcher, final SocketChannel channel) {
+    @Override protected void handOffAfterRead(final ISelectorDispatcher dispatcher, final SocketChannel channel) {
         getSession(channel).afterRead(this);
     }
 
     /** {@inheritDoc} */
-    @Override protected void handOffAfterWrite(ISelectorDispatcher dispatcher, final SocketChannel channel) {
+    @Override protected void handOffAfterWrite(final ISelectorDispatcher dispatcher, final SocketChannel channel) {
         getSession(channel).afterWrite(this);
     }
 
     /**
+     * Inits the server socket.
+     * @param socket the socket
+     */
+    abstract protected void initServerSocket(ServerSocket socket);
+
+    /**
      * New session.
      * @param channel the channel
-     * @return the i session
+     * @return the session
      */
-    protected ISession newSession(final SelectableChannel channel) {
-        return null;
+    abstract protected ISession newSession(final SelectableChannel channel);
+
+    /**
+     * Removes the session handler.
+     * @param address the address
+     * @return the i session handler
+     */
+    protected ISessionHandler removeSessionHandler(final SocketAddress address) {
+        return sessionHandlerMap_.remove(address);
     }
 }

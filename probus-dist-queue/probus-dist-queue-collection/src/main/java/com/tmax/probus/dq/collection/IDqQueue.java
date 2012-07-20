@@ -1,5 +1,5 @@
 /*
- * IDqDeque.java Version 1.0 Feb 6, 2012
+ * IDqQueue.java Version 1.0 Jul 6, 2012
  * *
  * Copyright (c) 2010 by Tmax Soft co., Ltd.
  * All rights reserved.
@@ -13,24 +13,11 @@
 package com.tmax.probus.dq.collection;
 
 
-import java.util.List;
-import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.BlockingQueue;
 
 
 /**
  *
  */
-public interface IDqDeque<K, E> extends BlockingDeque<E>, IDqCollection<K, E> {
-    /**
-     * Eliminate.
-     * @param key the key
-     * @return the e
-     */
-    E eliminate(K key);
-
-    /**
-     * Gets the expired list.
-     * @return the expired list
-     */
-    List<E> getExpiredList();
+public interface IDqQueue<K, E> extends BlockingQueue<E>, IDqCollection<K, E> {
 }

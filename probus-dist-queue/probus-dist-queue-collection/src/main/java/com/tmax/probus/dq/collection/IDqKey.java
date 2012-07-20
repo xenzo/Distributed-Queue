@@ -1,5 +1,5 @@
 /*
- * ISessionHandler.java Version 1.0 May 16, 2012
+ * IDqKey.java Version 1.0 Jul 9, 2012
  * *
  * Copyright (c) 2010 by Tmax Soft co., Ltd.
  * All rights reserved.
@@ -10,10 +10,13 @@
  * and shall use it only in accordance with the terms of the license agreement
  * entered into with Tmax Soft co., Ltd.
  */
-package com.tmax.probus.nio.api;
+package com.tmax.probus.dq.collection;
 
 /**
  *
  */
-public interface IEndPointHandler extends ISessionListener, IMessageEventListener {
+public interface IDqKey {
+    String getId();
+
+    long getSeq();
 }

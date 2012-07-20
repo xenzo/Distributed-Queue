@@ -12,13 +12,11 @@
  */
 package com.tmax.probus.dq.collection;
 
-/**
- * DqCollection에서 사용할 인자값을 나타내는 인터페이스이다.
- */
+/** DqCollection에서 사용할 인자값을 나타내는 인터페이스이다. */
 public interface IDqElement<K> {
     /**
      * Gets the id.
      * @return the id
      */
-    K getId();
+    K getIdentifier();
 }

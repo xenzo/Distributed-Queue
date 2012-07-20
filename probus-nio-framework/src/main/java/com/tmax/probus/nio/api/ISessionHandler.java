@@ -1,5 +1,5 @@
 /*
- * IDqDeque.java Version 1.0 Feb 6, 2012
+ * ISessionHandler.java Version 1.0 May 16, 2012
  * *
  * Copyright (c) 2010 by Tmax Soft co., Ltd.
  * All rights reserved.
@@ -10,27 +10,22 @@
  * and shall use it only in accordance with the terms of the license agreement
  * entered into with Tmax Soft co., Ltd.
  */
-package com.tmax.probus.dq.collection;
-
-
-import java.util.List;
-import java.util.concurrent.BlockingDeque;
-
+package com.tmax.probus.nio.api;
 
 /**
- *
+ * The Interface ISessionHandler.
  */
-public interface IDqDeque<K, E> extends BlockingDeque<E>, IDqCollection<K, E> {
+public interface ISessionHandler extends ILifeCycle, ISessionListener {
     /**
-     * Eliminate.
-     * @param key the key
-     * @return the e
+     * Adds the session.
+     * @param session the session
      */
-    E eliminate(K key);
+    void addSession(ISession session);
 
     /**
-     * Gets the expired list.
-     * @return the expired list
+     * Removes the session.
+     * @param session the session
+     * @return the i session
      */
-    List<E> getExpiredList();
+    ISession removeSession(ISession session);
 }

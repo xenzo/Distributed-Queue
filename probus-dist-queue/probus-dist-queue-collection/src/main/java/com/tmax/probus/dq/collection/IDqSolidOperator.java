@@ -68,7 +68,7 @@ public interface IDqSolidOperator<K, V> {
      * @param value the value
      * @return the v
      */
-    V putSolidly(K key, V value);
+    boolean putSolidly(K key, V value);
 
     /**
      * Removes the item.

@@ -13,10 +13,7 @@
 package com.tmax.probus.nio.reactor;
 
 
-import static java.util.logging.Level.FINER;
-import static java.util.logging.Level.FINEST;
-import static java.util.logging.Level.SEVERE;
-import static java.util.logging.Level.WARNING;
+import static java.util.logging.Level.*;
 
 import java.io.IOException;
 import java.net.Socket;
@@ -109,11 +106,11 @@ public abstract class AbstractSelectorDispatcher implements ISelectorDispatcher 
 
     /** {@inheritDoc} */
     @Override public void destroy() {
-        for (SelectionKey key : selector_.keys()) {
+        for (final SelectionKey key : selector_.keys()) {
             try {
                 key.channel().close();
                 key.cancel();
-            } catch (IOException ex) {
+            } catch (final IOException ex) {
                 logger.log(WARNING, "" + ex.getMessage(), ex);
             }
         }
@@ -127,6 +124,11 @@ public abstract class AbstractSelectorDispatcher implements ISelectorDispatcher 
             changeQueue_ = null;
             queue.clear();
         }
+    }
+
+    /** {@inheritDoc} */
+    @Override public int getKeyCount() {
+        return selector_.keys().size();
     }
 
     /** {@inheritDoc} */
@@ -168,7 +170,8 @@ public abstract class AbstractSelectorDispatcher implements ISelectorDispatcher 
     @Override public SelectableChannel handleWrite(final SelectionKey key) throws IOException {
         final SocketChannel channel = (SocketChannel) key.channel();
         if (sendMessage(channel)) {
-            //            removeOps(channel, SelectionKey.OP_WRITE); // XXX write시에 OP_WRITE등록과 선/후가 바뀌면 어쩔것인가.
+            //            removeOps(channel, SelectionKey.OP_WRITE);
+            // XXX write시에 OP_WRITE등록과 선/후가 바뀌면 어쩔것인가.
             handOffAfterWrite(channel);
         }
         return channel;
@@ -204,11 +207,6 @@ public abstract class AbstractSelectorDispatcher implements ISelectorDispatcher 
     /** {@inheritDoc} */
     @Override public boolean isRunning() {
         return isRunning_;
-    }
-
-    /** {@inheritDoc} */
-    @Override public int getKeyCount() {
-        return selector_.keys().size();
     }
 
     /** {@inheritDoc} */
@@ -287,6 +285,16 @@ public abstract class AbstractSelectorDispatcher implements ISelectorDispatcher 
 
     /** Before change request. */
     abstract protected void beforeChangeRequest();
+
+    /**
+     * Cancel key.
+     * @param key the key
+     */
+    protected void cancelKey(final SelectionKey key) {
+        if (key.isValid()) key.interestOps(0);
+        key.attach(null);
+        key.cancel();
+    }
 
     /**
      * Gets the selector fail limit.
@@ -374,6 +382,19 @@ public abstract class AbstractSelectorDispatcher implements ISelectorDispatcher 
      * @throws IOException the IO exception
      */
     abstract protected boolean sendMessage(final SocketChannel channel) throws IOException;
+
+    /**
+     * Close channel.
+     * @param request the request
+     */
+    protected void terminateChannel(final SelectableChannel channel) {
+        try {
+            channel.close();
+            onConnectionClosed(channel);
+        } catch (final IOException ex) {
+            logger.logp(WARNING, getClass().getName(), "processChangeRequest()", "CLOSE_CHANNEL" + ex.getMessage(), ex);
+        }
+    }
 
     /**
      * Adds the change request.
@@ -478,20 +499,12 @@ public abstract class AbstractSelectorDispatcher implements ISelectorDispatcher 
                 break;
             case CLOSE_CHANNEL:
                 if (key != null) {
-                    try {
-                        request.channel.close();
-                        onConnectionClosed(request.channel);
-                    } catch (final IOException ex) {
-                        logger.logp(WARNING, getClass().getName(), "processChangeRequest()",
-                            "CLOSE_CHANNEL" + ex.getMessage(), ex);
-                    }
+                    terminateChannel(request.channel);
                 }
                 //break;
             case DEREGISTER:
                 if (key != null) {
-                    if (key.isValid()) key.interestOps(0);
-                    key.attach(null);
-                    key.cancel();
+                    cancelKey(key);
                 }
                 break;
             }

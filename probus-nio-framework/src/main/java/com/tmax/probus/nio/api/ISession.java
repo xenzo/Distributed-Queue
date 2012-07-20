@@ -18,22 +18,8 @@ import java.nio.channels.SelectableChannel;
 import java.nio.channels.SocketChannel;
 
 
-/**
- * 연결을 나타내는 세션 인터페이스.
- */
+/** 연결을 나타내는 세션 인터페이스. */
 public interface ISession {
-    /**
-     * Gets the channel.
-     * @return the channel
-     */
-    SocketChannel getChannel();
-
-    /**
-     * Gets the socket.
-     * @return the socket
-     */
-    Socket getSocket();
-
     /**
      * Reactor에서 Accept이벤트를 처리한 후 실행할 동작을 정의한다.(e.g channel에 OP_READ를 설정)
      * @param reactor the reactor
@@ -58,27 +44,14 @@ public interface ISession {
      */
     void afterWrite(IReactor reactor);
 
-    /**
-     * 세션 폐기.
-     */
+    /** 세션 폐기. */
     void destroy();
 
     /**
-     * 세션 초기화.
+     * Gets the channel.
+     * @return the channel
      */
-    void init();
-
-    /**
-     * 인바운드 메세지를 완성할 IMessageReader객체를 변경한다.
-     * @param reader the new message reader
-     */
-    void setMessageReader(IMessageIoHandler reader);
-
-    /**
-     * Gets the message handler.
-     * @return the message handler
-     */
-    IMessageIoHandler getMessageHandler();
+    SocketChannel getChannel();
 
     /**
      * Gets the connection event listener.
@@ -87,12 +60,59 @@ public interface ISession {
     IConnectionEventListener getConnectionEventListener();
 
     /**
-     * @return
+     * Gets the message event listener.
+     * @return the message event listener
      */
     IMessageEventListener getMessageEventListener();
 
     /**
-     * @param channel
+     * Gets the message handler.
+     * @return the message handler
+     */
+    IMessageIoHandler getMessageHandler();
+
+    /**
+     * Gets the session handler.
+     * @return the session handler
+     */
+    ISessionHandler getSessionHandler();
+
+    /**
+     * Gets the socket.
+     * @return the socket
+     */
+    Socket getSocket();
+
+    /** 세션 초기화. */
+    void init();
+
+    /**
+     * Sets the channel.
+     * @param channel the new channel
      */
     void setChannel(SelectableChannel channel);
+
+    /**
+     * Sets the connection event listener.
+     * @param listener the new connection event listener
+     */
+    void setConnectionEventListener(IConnectionEventListener listener);
+
+    /**
+     * Sets the message event listener.
+     * @param listener the new message event listener
+     */
+    void setMessageEventListener(IMessageEventListener listener);
+
+    /**
+     * 인바운드 메세지를 완성할 IMessageReader객체를 변경한다.
+     * @param reader the new message reader
+     */
+    void setMessageHandler(IMessageIoHandler reader);
+
+    /**
+     * Sets the session handler.
+     * @param handler the new session handler
+     */
+    void setSessionHandler(ISessionHandler handler);
 }
