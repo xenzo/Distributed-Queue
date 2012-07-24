@@ -83,6 +83,10 @@ public interface IDqSolidOperator<K, V> {
 
     V remove(K key);
 
+    V removeSolidly(K key, V expectValue);
+
+    V remove(K key, V expectValue);
+
     boolean linkFirst(V value);
 
     boolean linkLast(V value);

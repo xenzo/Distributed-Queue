@@ -833,7 +833,16 @@ class DqCollection<K, E extends IDqElement<K>>
 
     /** {@inheritDoc} */
     @Override public E remove(K key) {
+        if (key == null) throw new NullPointerException();
         Node<K, E> node = findNode(comparable(key));
+        return node != null && node.delete() ? node.getElement() : null;
+    }
+
+    /** {@inheritDoc} */
+    @Override public E remove(K key, E expectValue) {
+        if (key == null) throw new NullPointerException();
+        Node<K, E> node = findNode(comparable(key));
+        if (node == null || expectValue == null || !expectValue.equals(node.getElement())) return null;
         return node.delete() ? node.getElement() : null;
     }
 
@@ -870,9 +879,17 @@ class DqCollection<K, E extends IDqElement<K>>
 
     /** {@inheritDoc} */
     @Override public final E removeSolidly(final K key) {
-        if (key == null) throw new IllegalArgumentException();
+        if (key == null) throw new NullPointerException();
         final Node<K, E> node = findNode(comparable(key));
         if (node == null) return null;
+        return unlinkNodeSolidly(node);
+    }
+
+    /** {@inheritDoc} */
+    @Override public E removeSolidly(K key, E expectValue) {
+        if (key == null) throw new NullPointerException();
+        final Node<K, E> node = findNode(comparable(key));
+        if (node == null || expectValue == null || !expectValue.equals(node.getElement())) return null;
         return unlinkNodeSolidly(node);
     }
 
@@ -908,11 +925,9 @@ class DqCollection<K, E extends IDqElement<K>>
     private final E unlinkNodeSolidly(final Node<K, E> node) {
         if (node == null) throw new NullPointerException();
         if (node == NULL_NODE) throw new IllegalArgumentException("NULL NODE");
-        E existNode = doRemove(node.getId(), null);
+        E existNode = doRemove(node.getId(), node.getElement());
         if (existNode == null) throw new NoSuchElementException("NOT EXISTS");
-        if (node.isReal()) {
-            if (node.delete()) afterUnlink(node);
-        }
+        if (node.isReal() && node.delete()) afterUnlink(node);
         fullCount_.decrementAndGet();
         node.gc();
         return node.getElement();

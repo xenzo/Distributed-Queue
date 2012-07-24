@@ -47,8 +47,8 @@ class MapProxyInvoker<K, E extends IDqElement<K>>
     }
 
     /** {@inheritDoc} */
-    @Override public boolean remove(Object key, Object value) {
-        return false;
+    @SuppressWarnings("unchecked") @Override public boolean remove(Object key, Object value) {
+        return map_.remove((K) key, (E) value) != null ? true : false;
     }
 
     /** {@inheritDoc} */
