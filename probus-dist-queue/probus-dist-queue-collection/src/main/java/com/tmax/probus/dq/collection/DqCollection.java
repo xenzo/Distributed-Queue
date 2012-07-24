@@ -85,7 +85,7 @@ class DqCollection<K, E extends IDqElement<K>>
     /** The logger. */
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.dq.collection");
     /** The id. */
-    final String id_;
+    private final String id_;
     /** 아이템 추가/제거시 호출되는 리스너. */
     private IDqItemEventListener<E> listener_;
     /** 큐의 head이다. */
@@ -121,7 +121,7 @@ class DqCollection<K, E extends IDqElement<K>>
      * @param maxSize the max size
      * @param repo the repo
      */
-    public DqCollection(final String id, final IDqItemEventListener<E> listener, final int maxSize, Comparator<K> comparator) {
+    DqCollection(final String id, final IDqItemEventListener<E> listener, final int maxSize, Comparator<K> comparator) {
         if (id == null) throw new NullPointerException("IDqCollection ID is null");
         id_ = id;
         listener_ = (listener == null ? new DoNothingEventListener() : listener);
@@ -130,14 +130,18 @@ class DqCollection<K, E extends IDqElement<K>>
         comparator_ = comparator;
     }
 
+    DqCollection(final String id) {
+        this(id, null, 0, null);
+    }
+
     /*----------------------*/
     /* skip list operations */
     /*----------------------*/
-    boolean casHeadIndex(HeadIndex<K, E> cmp, HeadIndex<K, E> value) {
+    final boolean casHeadIndex(HeadIndex<K, E> cmp, HeadIndex<K, E> value) {
         return headIndex_.compareAndSet(cmp, value);
     }
 
-    HeadIndex<K, E> getHeadIndex() {
+    private final HeadIndex<K, E> getHeadIndex() {
         return headIndex_.get();
     }
 
@@ -164,7 +168,7 @@ class DqCollection<K, E extends IDqElement<K>>
         }
 
         /** {@inheritDoc} */
-        public int compareTo(K k2) {
+        @Override public int compareTo(K k2) {
             return cmp.compare(actualKey, k2);
         }
     }
@@ -185,7 +189,7 @@ class DqCollection<K, E extends IDqElement<K>>
      * Compares using comparator or natural ordering. Used when the
      * ComparableUsingComparator approach doesn't apply.
      */
-    @SuppressWarnings("unchecked") int compare(K k1, K k2) throws ClassCastException {
+    @SuppressWarnings("unchecked") private final int compare(K k1, K k2) throws ClassCastException {
         Comparator<K> cmp = comparator_;
         if (cmp != null) return cmp.compare(k1, k2);
         else return ((Comparable<K>) k1).compareTo(k2);
@@ -200,29 +204,28 @@ class DqCollection<K, E extends IDqElement<K>>
      * @param key the key
      * @return a predecessor of key
      */
-    Index<K, E> findPredecessorIndex(Comparable<K> key) {
+    private final Index<K, E> findPredecessorIndex(Comparable<K> key) {
         if (key == null) throw new NullPointerException(); // don't postpone errors
-        return _findPredecessorIndex(getHeadIndex(), key);
-    }
-
-    /**
-     * Find predecessor recursively.
-     * @param basis the prev
-     * @param key the key
-     * @return the index
-     */
-    Index<K, E> _findPredecessorIndex(Index<K, E> basis, Comparable<K> key) {
-        Index<K, E> q = basis;
-        Index<K, E> r = q.getRight();
-        if (r != null) {
-            if (r.indexesDeletedNode()) {
-                if (!q.unlink(r)) return _findPredecessorIndex(getHeadIndex(), key);//restart
-                return _findPredecessorIndex(q, key);
+        while (true) {
+            Index<K, E> q = getHeadIndex();
+            while (true) {
+                Index<K, E> r = q.getRight();
+                if (r != null) {
+                    if (r.indexesDeletedNode()) {
+                        if (!q.unlink(r)) break;
+                        continue;
+                    }
+                    if (key.compareTo(r.key()) > 0) {
+                        q = r;
+                        continue;
+                    }
+                }
+                Index<K, E> d = q.down();
+                if (d != null) {
+                    q = d;
+                } else return q;
             }
-            if (key.compareTo(r.node.getId()) > 0) return _findPredecessorIndex(r, key);
         }
-        if (q.down == null) return q;
-        return _findPredecessorIndex(q.down, key);
     }
 
     /**
@@ -254,19 +257,19 @@ class DqCollection<K, E extends IDqElement<K>>
      * @param key the key
      * @return node holding key, or null if no such
      */
-    Node<K, E> findNode(Comparable<K> key) {
-        return _findNode(findPredecessorIndex(key), key);
-    }
-
-    Node<K, E> _findNode(Index<K, E> basis, Comparable<K> key) {
-        Index<K, E> b = basis;
-        Index<K, E> n = b.getRight();
-        if (n == null) return null;
-        if (!isValidStatus(b, n)) return findNode(key);
-        int c = key.compareTo(n.node.getId());
-        if (c == 0) return n.node;
-        if (c < 0) return null;
-        return _findNode(n, key);
+    private final Node<K, E> findNode(Comparable<K> key) {
+        while (true) {
+            Index<K, E> b = findPredecessorIndex(key);
+            while (true) {
+                Index<K, E> n = b.getRight();
+                if (n == null) return null;
+                if (!isValidStatus(b, n)) break;
+                int c = key.compareTo(n.key());
+                if (c == 0) return n.node();
+                if (c < 0) return null;
+                b = n;
+            }
+        }
     }
 
     /**
@@ -275,20 +278,20 @@ class DqCollection<K, E extends IDqElement<K>>
      * @param successor the successor
      * @return true, if is valid status
      */
-    private boolean isValidStatus(Index<K, E> predecessor, Index<K, E> successor) {
+    private final boolean isValidStatus(Index<K, E> predecessor, Index<K, E> successor) {
         return successor == predecessor.getRight() && !successor.indexesDeletedNode() && !predecessor.indexesDeletedNode();
     }
 
-    Index<K, E> findIndex(Comparable<K> key) {
+    private final Index<K, E> findIndex(Comparable<K> key) {
         return _findIndex(findPredecessorIndex(key), key);
     }
 
-    Index<K, E> _findIndex(Index<K, E> basis, Comparable<K> key) {
+    private final Index<K, E> _findIndex(Index<K, E> basis, Comparable<K> key) {
         Index<K, E> b = basis;
         Index<K, E> n = b.getRight();
         if (n == null) return null;
         if (!isValidStatus(b, n)) return findIndex(key);
-        int c = key.compareTo(n.node.getId());
+        int c = key.compareTo(n.key());
         if (c == 0) return n;
         if (c < 0) return null;
         return _findIndex(n, key);
@@ -299,14 +302,14 @@ class DqCollection<K, E extends IDqElement<K>>
      * @param okey the key
      * @return the value, or null if absent
      */
-    E doGet(K okey) {
+    private final E doGet(K okey) {
         Comparable<K> key = comparable(okey);
         /*
          * Loop needed here and elsewhere in case value field goes
          * null just as it is about to be returned, in which case we
          * lost a race with a deletion, so must retry.
          */
-        for (;;) {
+        while (true) {
             Node<K, E> n = findNode(key);
             if (n == null) return null;
             E v = n.getElement();
@@ -323,31 +326,32 @@ class DqCollection<K, E extends IDqElement<K>>
      * @param onlyIfAbsent if should not insert if already present
      * @return the old value, or null if newly inserted
      */
-    E doPut(Node<K, E> node, boolean onlyIfAbsent) {
+    private final E doPut(Node<K, E> node, boolean onlyIfAbsent) {
         Comparable<K> key = comparable(node.getId());
-        Index<K, E> b = findPredecessorIndex(key);
-        return _addNode(b, node, onlyIfAbsent);
-    }
-
-    E _addNode(Index<K, E> basis, Node<K, E> node, boolean onlyIfAbsent) {
-        Index<K, E> b = basis;
-        Index<K, E> n = b.getRight();
-        Comparable<K> key = comparable(node.getId());
-        if (n != null) {
-            E v = n.node.getElement();
-            if (!isValidStatus(b, n)) return _addNode(findPredecessorIndex(key), node, onlyIfAbsent);
-            int c = key.compareTo(n.node.getId());
-            if (c > 0) return _addNode(n, node, onlyIfAbsent);
-            if (c == 0) {
-                if (onlyIfAbsent || n.node.casElement(v, node.getElement())) return v;
-                else return _addNode(findPredecessorIndex(key), node, onlyIfAbsent);
+        for (;;) {
+            Index<K, E> b = findPredecessorIndex(key);
+            for (;;) {
+                Index<K, E> n = b.getRight();
+                if (n != null) {
+                    if (!isValidStatus(b, n)) break;
+                    int c = key.compareTo(n.key());
+                    if (c > 0) {
+                        b = n;
+                        continue;
+                    }
+                    if (c == 0) {
+                        E v = n.value();
+                        if (onlyIfAbsent || n.casValue(v, node.getElement())) return v;
+                        else break;
+                    }
+                }
+                Index<K, E> z = newFirstIndex(node);
+                if (!b.link(n, z)) break;
+                int level = randomLevel();
+                if (level > 0) insertIndex(z, level);
+                return null;
             }
         }
-        Index<K, E> z = newFirstIndex(node);
-        if (!b.link(n, z)) return _addNode(findPredecessorIndex(key), node, onlyIfAbsent);
-        int level = randomLevel();
-        if (level > 0) _insertIndex(z, level);
-        return null;
     }
 
     /**
@@ -355,7 +359,7 @@ class DqCollection<K, E extends IDqElement<K>>
      * @param node the node
      * @return the index
      */
-    Index<K, E> newFirstIndex(Node<K, E> node) {
+    private final Index<K, E> newFirstIndex(Node<K, E> node) {
         return new Index<K, E>(node, null, null);
     }
 
@@ -366,7 +370,7 @@ class DqCollection<K, E extends IDqElement<K>>
      * Xorshift RNGs" paper. This is not a high-quality generator but is
      * acceptable here.
      */
-    private int randomLevel() {
+    private final int randomLevel() {
         int x = randomSeed;
         x ^= x << 13;
         x ^= x >>> 17;
@@ -384,14 +388,14 @@ class DqCollection<K, E extends IDqElement<K>>
      * @param z the node
      * @param level the level of the index
      */
-    void _insertIndex(Index<K, E> z, int level) {
+    private final void insertIndex(Index<K, E> z, int level) {
         HeadIndex<K, E> h = getHeadIndex();
         int max = h.level;
         if (level <= max) {
             Index<K, E> idx = z;
             for (int i = 1; i <= level; ++i)
                 idx = new Index<K, E>(idx, null);
-            _addIndex(idx, h, level);
+            addIndex(idx, h, level);
         } else { // Add a new level
             /*
              * To reduce interference by other threads checking for
@@ -416,7 +420,7 @@ class DqCollection<K, E extends IDqElement<K>>
                     break;
                 }
                 HeadIndex<K, E> newh = oldh;
-                Node<K, E> oldbase = oldh.node;
+                Node<K, E> oldbase = oldh.node();
                 for (int j = oldLevel + 1; j <= level; ++j)
                     newh = new HeadIndex<K, E>(oldbase, newh, idxs[j], j);
                 if (casHeadIndex(oldh, newh)) {
@@ -424,7 +428,7 @@ class DqCollection<K, E extends IDqElement<K>>
                     break;
                 }
             }
-            _addIndex(idxs[k], oldh, k);
+            addIndex(idxs[k], oldh, k);
         }
     }
 
@@ -435,45 +439,51 @@ class DqCollection<K, E extends IDqElement<K>>
      *            callers to provide correct insertion level
      * @param indexLevel the level of the index
      */
-    void _addIndex(Index<K, E> idx, HeadIndex<K, E> h, int indexLevel) {
+    private final void addIndex(Index<K, E> idx, HeadIndex<K, E> h, int indexLevel) {
         // Track next level to insert in case of retries
         int insertionLevel = indexLevel;
-        Comparable<K> key = comparable(idx.node.getId());
+        Comparable<K> key = comparable(idx.key());
         if (key == null) throw new NullPointerException();
         // Similar to findPredecessor, but adding index nodes along path to key.
-        int j = h.level;
-        Index<K, E> q = h;
-        Index<K, E> t = idx;
-        boolean ts = false;
-        while (!ts)
-            ts = _addIndex(t, q, key, j, insertionLevel);
-    }
-
-    boolean _addIndex(final Index<K, E> idx, final Index<K, E> basis, final Comparable<K> key, int headLevel, int workLevel) {
-        final Index<K, E> q = basis;
-        final Index<K, E> r = q.getRight();
-        final Index<K, E> t = idx;
-        if (r != null) {
-            if (r.indexesDeletedNode()) {
-                if (!q.unlink(r)) return false;
-                return _addIndex(t, q, key, headLevel, workLevel);
+        while (true) {
+            int j = h.level;
+            Index<K, E> q = h;
+            Index<K, E> t = idx;
+            while (true) {
+                Index<K, E> r = q.getRight();
+                if (r != null) {
+                    // compare before deletion check avoids needing recheck
+                    if (r.indexesDeletedNode()) {
+                        if (!q.unlink(r)) break;
+                        continue;
+                    }
+                    int c = key.compareTo(r.key());
+                    if (c > 0) {
+                        q = r;
+                        continue;
+                    }
+                }
+                if (j == insertionLevel) {
+                    // Don't insert index if node already deleted
+                    if (t.indexesDeletedNode()) {
+                        findNode(key); // cleans up
+                        return;
+                    }
+                    if (!q.link(r, t))
+                        break; // restart
+                    if (--insertionLevel == 0) {
+                        // need final deletion check before return
+                        if (t.indexesDeletedNode())
+                            findNode(key);
+                        return;
+                    }
+                }
+                if (--j >= insertionLevel && j < indexLevel)
+                    t = t.down;
+                q = q.down;
+                r = q.getRight();
             }
-            int c = key.compareTo(r.node.getId());
-            if (c > 0) return _addIndex(t, r, key, headLevel, workLevel);
         }
-        if (headLevel == workLevel) {
-            if (t.indexesDeletedNode()) {
-                findNode(key);
-                return true;
-            }
-            if (!q.link(r, t)) return false;
-            if (workLevel == 1) {
-                if (t.indexesDeletedNode()) findNode(key);
-                return true;
-            }
-            return _addIndex(t.down, q.down, key, --headLevel, --workLevel);
-        }
-        return _addIndex(t, q.down, key, --headLevel, workLevel);
     }
 
     /* ---------------- Deletion -------------- */
@@ -491,36 +501,41 @@ class DqCollection<K, E extends IDqElement<K>>
      * @param value if non-null, the value that must be associated with key
      * @return the node, or null if not found
      */
-    final E doRemove(K okey, E value) {
+    private final E doRemove(K okey, E value) {
         Comparable<K> key = comparable(okey);
         Index<K, E> b = findPredecessorIndex(key);
-        return _removeNode(b, key, value);
+        return removeNode(b, key, value);
     }
 
-    final E doRemove(Node<K, E> node) {
+    private final E doRemove(Node<K, E> node) {
         return doRemove(node.getId(), null);
     }
 
-    E _removeNode(Index<K, E> basis, Comparable<K> key, E value) {
-        Index<K, E> b = basis;
-        Index<K, E> n = b.getRight();
-        if (n == null) return null;
-        Index<K, E> f = n.getRight();
-        E v = n.node.getElement();
-        if (!isValidStatus(b, n)) return _removeNode(findPredecessorIndex(key), key, value);
-        int c = key.compareTo(n.node.getId());
-        if (c == 0) {
-            if (value != null && !value.equals(v)) return null;
-            if (!n.node.casElement(v, null)) return _removeNode(findPredecessorIndex(key), key, value);
-            if (!b.casRight(n, f)) findNode(key);
-            else {
-                findPredecessorIndex(key);
-                if (getHeadIndex().getRight() == null) tryReduceLevel();
+    private final E removeNode(Index<K, E> basis, Comparable<K> key, E value) {
+        while (true) {
+            Index<K, E> b = basis;
+            while (true) {
+                Index<K, E> n = b.getRight();
+                if (n == null) return null;
+                Index<K, E> f = n.getRight();
+                if (!isValidStatus(b, n)) break;
+                int c = key.compareTo(n.key());
+                if (c < 0) return null;
+                if (c > 0) {
+                    b = n;
+                    continue;
+                }
+                E v = n.value();
+                if (value != null && !value.equals(v)) return null;
+                if (!n.casValue(v, null)) break;
+                if (!b.casRight(n, f)) findNode(key);
+                else {
+                    findPredecessorIndex(key);
+                    if (getHeadIndex().getRight() == null) tryReduceLevel();
+                }
+                return v;
             }
-            return v;
         }
-        if (c < 0) return null;
-        return _removeNode(n, key, value);
     }
 
     /**
@@ -539,12 +554,12 @@ class DqCollection<K, E extends IDqElement<K>>
      * lot of levels, slowing down access more than would an occasional unwanted
      * reduction.
      */
-    private void tryReduceLevel() {
+    private final void tryReduceLevel() {
         HeadIndex<K, E> h = getHeadIndex();
         HeadIndex<K, E> d;
         HeadIndex<K, E> e;
-        if (h.level > 3 && (d = (HeadIndex<K, E>) h.down) != null
-                && (e = (HeadIndex<K, E>) d.down) != null
+        if (h.level > 3 && (d = (HeadIndex<K, E>) h.down()) != null
+                && (e = (HeadIndex<K, E>) d.down()) != null
                 && e.getRight() == null && d.getRight() == null && h.getRight() == null && casHeadIndex(h, d)
                 // try to set
                 && h.getRight() != null) // recheck
@@ -556,16 +571,10 @@ class DqCollection<K, E extends IDqElement<K>>
     /*----------------*/
     public final boolean addAll(final Collection<? extends E> collection) {
         if (collection == null) throw new NullPointerException();
-        final Lock lock = lock_;
-        lock.lock();
-        try {
-            boolean modified = false;
-            for (final E e : collection)
-                if (linkLast(newNode(e))) modified = true;
-            return modified;
-        } finally {
-            lock.unlock();
-        }
+        boolean modified = false;
+        for (final E e : collection)
+            if (linkLast(newNode(e))) modified = true;
+        return modified;
     }
 
     public final void clear() {
@@ -639,21 +648,21 @@ class DqCollection<K, E extends IDqElement<K>>
     }
 
     public final E peekFirst() {
-        return head_.getAfter().getElement();
+        return head_.successor().getElement();
     }
 
     public final E peekLast() {
-        return tail_.getBefore().getElement();
+        return tail_.predecessor().getElement();
     }
 
     public final E pollFirst() {
-        return unlinkFirst();
+        return unlinkFirstQ();
     }
 
     public final E pollFirst(final long timeout, final TimeUnit unit) throws InterruptedException {
         long nanos = unit.toNanos(timeout);
         E e = null;
-        while ((e = unlinkFirst()) == null) {
+        while ((e = unlinkFirstQ()) == null) {
             if (nanos <= 0) return null;
             final Lock lock = lock_;
             lock.lockInterruptibly();
@@ -667,13 +676,13 @@ class DqCollection<K, E extends IDqElement<K>>
     }
 
     public final E pollLast() {
-        return unlinkLast();
+        return unlinkLastQ();
     }
 
     public final E pollLast(final long timeout, final TimeUnit unit) throws InterruptedException {
         long nanos = unit.toNanos(timeout);
         E e = null;
-        while ((e = unlinkLast()) == null) {
+        while ((e = unlinkLastQ()) == null) {
             if (nanos <= 0) return null;
             final Lock lock = lock_;
             lock.lockInterruptibly();
@@ -730,7 +739,7 @@ class DqCollection<K, E extends IDqElement<K>>
 
     public final E takeFirst() throws InterruptedException {
         E e = null;
-        while ((e = unlinkFirst()) == null) {
+        while ((e = unlinkFirstQ()) == null) {
             final Lock lock = lock_;
             lock.lock();
             try {
@@ -744,7 +753,7 @@ class DqCollection<K, E extends IDqElement<K>>
 
     public final E takeLast() throws InterruptedException {
         E e = null;
-        while ((e = unlinkLast()) == null) {
+        while ((e = unlinkLastQ()) == null) {
             final Lock lock = lock_;
             lock.lock();
             try {
@@ -792,7 +801,7 @@ class DqCollection<K, E extends IDqElement<K>>
         if (o == null) return false;
         @SuppressWarnings("unchecked") final Node<K, E> node = findNode(comparable((((E) o).getIdentifier())));
         if (node == null || !node.isReal()) return false;
-        return unlinkNode(node);
+        return node.delete();
     }
 
     public final E removeLast() {
@@ -823,9 +832,7 @@ class DqCollection<K, E extends IDqElement<K>>
 
     /** {@inheritDoc} */
     @Override public List<E> clearTimedOutSolidly(final long timeout, final TimeUnit unit) {
-        if (logger.isLoggable(FINER))
-            logger.entering("DqCollection", "clearTimedOutSolidly(long=" + timeout + ", TimeUnit=" + unit + ")",
-                "start");
+        if (logger.isLoggable(FINER)) logger.entering("DqCollection", "clearTimedOutSolidly(long=" + timeout + ", TimeUnit=" + unit + ")", "start");
         if (timeout < 0) throw new IllegalArgumentException();
         final List<E> olds = new ArrayList<E>();
         final long limit = unit.toNanos(timeout);
@@ -837,8 +844,7 @@ class DqCollection<K, E extends IDqElement<K>>
         } finally {
             lock.unlock();
         }
-        if (logger.isLoggable(FINER))
-            logger.exiting("DqCollection", "clearTimedOutSolidly(long, TimeUnit)", "end - return value=" + olds);
+        if (logger.isLoggable(FINER)) logger.exiting("DqCollection", "clearTimedOutSolidly(long, TimeUnit)", "end - return value=" + olds);
         return olds;
     }
 
@@ -865,17 +871,11 @@ class DqCollection<K, E extends IDqElement<K>>
     /** {@inheritDoc} */
     @Override public boolean putSolidly(final K key, final E value) {
         final Node<K, E> node = newNode(value);
-        final Lock lock = lock_;
-        lock.lock();
-        try {
-            final E exists = findSolidly(key);
-            if (exists == null) {
-                return linkLast(node);
-            } else {
-                return replaceSolidly(node);
-            }
-        } finally {
-            lock.unlock();
+        final E exists = findSolidly(key);
+        if (exists == null) {
+            return linkLast(node);
+        } else {
+            return replaceSolidly(node);
         }
     }
 
@@ -915,21 +915,16 @@ class DqCollection<K, E extends IDqElement<K>>
      * @param node the node
      * @return the e
      */
-    final E unlinkNodeSolidly(final Node<K, E> node) {
+    private final E unlinkNodeSolidly(final Node<K, E> node) {
         if (node == NULL_NODE) throw new IllegalArgumentException("NULL NODE");
         E existNode = doRemove(node.getId(), null);
         if (existNode == null) throw new NoSuchElementException("NOT EXISTS");
         if (node.isReal()) {
-            unlinkNode(node);
-            _afterUnlink(node);
+            if (node.delete()) afterUnlink(node);
         }
         fullCount_.decrementAndGet();
         node.gc();
         return node.getElement();
-    }
-
-    boolean unlinkNode(Node<K, E> node) {
-        return _unlinkNode(node, true);
     }
 
     /*-----------*/
@@ -977,7 +972,7 @@ class DqCollection<K, E extends IDqElement<K>>
         if (collection == null) throw new NullPointerException();
         final int n = Math.min(max, count_.intValue());
         for (int i = 0; i < n; i++) {
-            E e = unlinkFirst();
+            E e = unlinkFirstQ();
             if (e != null) collection.add(e);
             else break;
         }
@@ -992,52 +987,29 @@ class DqCollection<K, E extends IDqElement<K>>
      * @param node the node
      * @return true, if successful
      */
-    final boolean _linkAfter(Node<K, E> prevNode, Node<K, E> node) {
+    private final boolean linkAfterQ(Node<K, E> prevNode, Node<K, E> node) {
         while (true) {
             if (prevNode.isMarked()) return false;
-            Node<K, E> prevNextNode = prevNode.successor();
-            if (_linkBetween(node, prevNode, prevNextNode)) return true;
+            if (prevNode.append(node)) return true;
         }
     }
 
-    final boolean _linkBefore(Node<K, E> nextNode, Node<K, E> node) {
+    private final boolean linkBeforeQ(Node<K, E> nextNode, Node<K, E> node) {
         while (true) {
             if (nextNode.isMarked()) return false;
-            Node<K, E> nextBeforeNode = nextNode.predecessor();
-            if (_linkBetween(node, nextBeforeNode, nextNode)) return true;
+            if (nextNode.prepend(node)) return true;
         }
     }
 
-    boolean _linkBetween(Node<K, E> node, Node<K, E> prevNode, Node<K, E> nextNode) {
-        node.setBefore(prevNode);
-        node.setAfter(nextNode);
-        if (prevNode.casAfter(nextNode, node)) {
-            node.successor(); // cleanup aft node backpointer
-            return true;
-        }
-        return false;
-    }
-
-    boolean _unlinkNode(Node<K, E> node, boolean retry) {
-        while (true) {// til somebody deletes this node
-            if (node.isMarked()) return false; // already deleted
-            Node<K, E> nextNode = node.getAfter();
-            if (node.setMark(nextNode)) break;
-            if (!retry) return false;
-        }
-        node.predecessor();// just for cleanup
-        return true;
-    }
-
-    final boolean linkFirst(final Node<K, E> node) {
+    private final boolean linkFirst(final Node<K, E> node) {
         if (node == NULL_NODE) throw new IllegalArgumentException("NULL NODE");
         if (isFull()) return false;
         if (doPut(node, true) != null) return false;
-        if (!_linkBefore(head_.getAfter(), node)) {
+        if (!linkBeforeQ(head_.successor(), node)) {
             doRemove(node);
             return false;
         }
-        _afterLink(node);
+        afterLink(node);
         return true;
     }
 
@@ -1046,22 +1018,22 @@ class DqCollection<K, E extends IDqElement<K>>
      * @param node the node
      * @return true, if successful
      */
-    final boolean linkLast(final Node<K, E> node) {
+    private final boolean linkLast(final Node<K, E> node) {
         if (node == NULL_NODE) throw new IllegalArgumentException("NULL NODE");
         if (isFull()) return false;
         if (doPut(node, true) != null) return false;
-        if (!_linkAfter(tail_.getBefore(), node)) {
+        if (!linkAfterQ(tail_.predecessor(), node)) {
             doRemove(node);
             return false;
         }
-        _afterLink(node);
+        afterLink(node);
         return true;
     }
 
     /**
      * @param node
      */
-    void _afterLink(final Node<K, E> node) {
+    private final void afterLink(final Node<K, E> node) {
         count_.incrementAndGet();
         fullCount_.incrementAndGet();
         listener_.processItemAdded(node.getElement());
@@ -1072,13 +1044,12 @@ class DqCollection<K, E extends IDqElement<K>>
      * BASE UNIT JOB.
      * @return the e
      */
-    final E unlinkFirst() {
-        if (count_.intValue() == 0) return null;
+    private final E unlinkFirstQ() {
         while (true) {
-            Node<K, E> h = head_.getAfter();
+            Node<K, E> h = head_.successor();
             if (h == NULL_NODE) return null;
-            if (_unlinkNode(h, true)) {
-                _afterUnlink(h);
+            if (h.delete()) {
+                afterUnlink(h);
                 return h.getElement();
             }
         }
@@ -1087,7 +1058,7 @@ class DqCollection<K, E extends IDqElement<K>>
     /**
      * @param node
      */
-    private void _afterUnlink(Node<K, E> node) {
+    private void afterUnlink(Node<K, E> node) {
         count_.decrementAndGet();
         listener_.processItemRemoved(node.getElement());
         notFull_.signal();
@@ -1097,13 +1068,12 @@ class DqCollection<K, E extends IDqElement<K>>
      * BASE UNIT JOB.
      * @return the e
      */
-    final E unlinkLast() {
-        if (count_.intValue() == 0) return null;
+    private final E unlinkLastQ() {
         while (true) {
-            Node<K, E> p = tail_.getBefore();
+            Node<K, E> p = tail_.predecessor();
             if (p == NULL_NODE) return null;
-            if (_unlinkNode(p, true)) {
-                _afterUnlink(p);
+            if (p.delete()) {
+                afterUnlink(p);
                 return p.getElement();
             }
         }
@@ -1114,7 +1084,7 @@ class DqCollection<K, E extends IDqElement<K>>
      * @param e the e
      * @return the node
      */
-    final Node<K, E> newNode(final E e) {
+    private final Node<K, E> newNode(final E e) {
         if (e == null) throw new NullPointerException(); // cannot make null node
         final Node<K, E> node = new Node<K, E>(e);
         return node;
@@ -1372,44 +1342,68 @@ class DqCollection<K, E extends IDqElement<K>>
             before_ = new AtomicReference<Node<X, Y>>(pre);
         }
 
-        final boolean setMark(Node<X, Y> expect) {
+        private final boolean setMark(Node<X, Y> expect) {
             final boolean marked = attemptMark(expect, true);
             if (marked) stampTime();
             return marked;
         }
 
-        final boolean casAfter(Node<X, Y> expect, Node<X, Y> node) {
+        private final boolean casAfter(Node<X, Y> expect, Node<X, Y> node) {
             return compareAndSet(expect, node, false, false);
         }
 
-        final boolean casBefore(Node<X, Y> expectNode, Node<X, Y> node) {
-            return before_.compareAndSet(expectNode, node);
+        private final boolean casBefore(Node<X, Y> expect, Node<X, Y> node) {
+            return before_.compareAndSet(expect, node);
         }
 
-        final Node<X, Y> getBefore() {
+        private final Node<X, Y> getBefore() {
             return before_.get();
         }
 
-        final Node<X, Y> getAfter() {
+        private final Node<X, Y> getAfter() {
             return getReference();
         }
 
         private final Node<X, Y> getAfterNoneMarked() {
             final Node<X, Y> node = getAfter();
-            return (node == NULL_NODE || !node.isMarked()) ? node : node.getAfter();
+            return !node.isMarked() ? node : node.getAfter();
         }
 
-        final Node<X, Y> successor() {
-            Node<X, Y> nextNode = getAfterNoneMarked();
+        public final boolean delete() {
+            Node<X, Y> nextNode = null;
+            while (true) {
+                if (isMarked()) return false;
+                nextNode = getAfter();
+                if (setMark(nextNode)) break;
+            }
+            nextNode.predecessor();
+            return true;
+        }
+
+        public final Node<X, Y> liveSuccessor() {
+            Node<X, Y> node = successor();
+            return (node == NULL_NODE) ? null : node;
+        }
+
+        public final Node<X, Y> successor() {
+            Node<X, Y> nextNode = getAfter();
             while (true) {
                 if (!nextNode.isMarked()) {
-                    if (nextNode.getBefore() != this && !isMarked()) nextNode.setBefore(this); // relink f's prev
+                    reflectForward();
                     return nextNode;
                 }
-                Node<X, Y> nextNextNode = nextNode.getAfterNoneMarked();
-                if (nextNode == getAfter()) casAfter(nextNode, nextNextNode); // unlink f
+                Node<X, Y> nextNextNode = nextNode.getAfter();
+                casAfter(nextNode, nextNextNode);
                 nextNode = nextNextNode;
             }
+        }
+
+        private final void reflectForward() {
+            if (isMarked()) return;
+            final Node<X, Y> nextNode = getAfter();
+            final Node<X, Y> nextPrevNode = nextNode.getBefore();
+            if (nextPrevNode == this) return;
+            if (!nextNode.isMarked()) nextNode.setBefore(this);
         }
 
         /**
@@ -1418,13 +1412,12 @@ class DqCollection<K, E extends IDqElement<K>>
          * Used by predecessor().
          * @return target's predecessor, or null if not found
          */
-        private Node<X, Y> findPredecessorOf(Node<X, Y> target) {
+        private final Node<X, Y> fixForwardUntil(Node<X, Y> target) {
             Node<X, Y> node = this;
             while (true) {
                 if (isMarked() || target.isMarked()) return null;
                 Node<X, Y> nextNode = node.successor();
                 if (nextNode == target) return node;
-                else if (nextNode == NULL_NODE) return null;
                 node = nextNode;
             }
         }
@@ -1436,18 +1429,22 @@ class DqCollection<K, E extends IDqElement<K>>
          * predecessor.
          * @return predecessor or null if not found
          */
-        Node<X, Y> predecessor() {
+        public final Node<X, Y> livePredecessor() {
+            Node<X, Y> node = predecessor();
+            return (node == NULL_NODE) ? null : node;
+        }
+
+        public final Node<X, Y> predecessor() {
             Node<X, Y> node = this;
             while (true) {
                 Node<X, Y> prevNode = node.getBefore();
-                //                if (prevNode == NULL_NODE) return node.findPredecessorOf(this);
                 Node<X, Y> prevNextNode = prevNode.getAfter();
-                if (prevNextNode == this) return prevNode;
-                if (!prevNode.isMarked()) {
-                    Node<X, Y> mayBeBack = prevNode.findPredecessorOf(this);
+                if (prevNode.isMarked()) node = prevNode;
+                else if (prevNextNode == this) return prevNode;
+                else {
+                    Node<X, Y> mayBeBack = prevNode.fixForwardUntil(this);
                     if (mayBeBack != null) return mayBeBack;
                 }
-                node = prevNode;
             }
         }
 
@@ -1457,14 +1454,16 @@ class DqCollection<K, E extends IDqElement<K>>
          * @param element the element
          * @return the new node, or null on failure
          */
-        Node<X, Y> append(Y element) {
-            for (;;) {
-                Node<X, Y> nextNode = getAfter();
-                if (isMarked()) return null;
-                Node<X, Y> newNode = new Node<X, Y>(element, this, nextNode);
-                if (casAfter(nextNode, newNode)) {
-                    nextNode.setBefore(newNode); // optimistically link
-                    return newNode;
+        public final boolean append(Node<X, Y> newNode) {
+            final Node<X, Y> prevNode = this;
+            while (true) {
+                if (isMarked()) return false;
+                Node<X, Y> nextNode = successor();
+                newNode.setBefore(prevNode);
+                newNode.setAfter(nextNode);
+                if (prevNode.casAfter(nextNode, newNode)) {
+                    newNode.reflectForward();
+                    return true;
                 }
             }
         }
@@ -1475,23 +1474,25 @@ class DqCollection<K, E extends IDqElement<K>>
          * @param element the element
          * @return the new node, or null on failure
          */
-        Node<X, Y> prepend(Y element) {
-            for (;;) {
+        public final boolean prepend(Node<X, Y> newNode) {
+            Node<X, Y> nextNode = this;
+            while (true) {
+                if (isMarked()) return false;
                 Node<X, Y> prevNode = predecessor();
-                if (isMarked()) return null;
-                Node<X, Y> newNode = new Node<X, Y>(element, prevNode, this);
-                if (prevNode.casAfter(this, newNode)) {
-                    setBefore(newNode); // optimistically link
-                    return newNode;
+                newNode.setBefore(prevNode);
+                newNode.setAfter(nextNode);
+                if (prevNode.casAfter(nextNode, newNode)) {
+                    newNode.reflectForward();
+                    return true;
                 }
             }
         }
 
-        final void setBefore(Node<X, Y> node) {
+        private final void setBefore(Node<X, Y> node) {
             before_.set(node);
         }
 
-        final void setAfter(Node<X, Y> node) {
+        private final void setAfter(Node<X, Y> node) {
             set(node, false);
         }
 
@@ -1505,15 +1506,15 @@ class DqCollection<K, E extends IDqElement<K>>
             setElement(null);
         }
 
-        final Y getElement() {
+        private final Y getElement() {
             return element_.get();
         }
 
-        final void setElement(Y elem) {
+        private final void setElement(Y elem) {
             element_.set(elem);
         }
 
-        final boolean casElement(Y elem, Y newElem) {
+        private final boolean casElement(Y elem, Y newElem) {
             return element_.compareAndSet(elem, newElem);
         }
 
@@ -1535,7 +1536,7 @@ class DqCollection<K, E extends IDqElement<K>>
          * timestamp가 음수인 경우는 head-tail구간에서 제외되지 않았다고 본다.
          * @return the elapsed time
          */
-        final long getElapsedTime() {
+        private final long getElapsedTime() {
             if (timestamp < 0) return 0;
             return System.nanoTime() - NANO_BASE - timestamp;
         }
@@ -1544,7 +1545,7 @@ class DqCollection<K, E extends IDqElement<K>>
          * Gets the id.
          * @return the id
          */
-        final X getId() {
+        private final X getId() {
             if (getElement() != null && !isBaseHeader()) return getElement().getIdentifier();
             return null;
         }
@@ -1553,7 +1554,7 @@ class DqCollection<K, E extends IDqElement<K>>
          * Checks if is real.
          * @return true, if is real
          */
-        final boolean isReal() {
+        private final boolean isReal() {
             return !isBaseHeader() && !isMarked();
         }
 
@@ -1566,19 +1567,19 @@ class DqCollection<K, E extends IDqElement<K>>
             return timestamp;
         }
 
-        boolean isDeleted() {
-            return this != NULL_NODE && !isBaseHeader() && getElement() == null;
+        private final boolean isDeleted() {
+            return !isBaseHeader() && getElement() == null;
         }
 
         /**
          * Checks if is base header.
          * @return true, if is base header
          */
-        boolean isBaseHeader() {
+        private final boolean isBaseHeader() {
             return element_ == BASE_HEADER;
         }
 
-        AbstractMap.SimpleImmutableEntry<X, Y> createSnapshot() {
+        private final AbstractMap.SimpleImmutableEntry<X, Y> createSnapshot() {
             if (isBaseHeader() || getElement() == null) return null;
             return new AbstractMap.SimpleImmutableEntry<X, Y>(getId(), getElement());
         }
@@ -1618,17 +1619,17 @@ class DqCollection<K, E extends IDqElement<K>>
         private static final long serialVersionUID = 3547797323824693918L;
         final int level;
 
-        HeadIndex(Node<S, T> node, Index<S, T> down, Index<S, T> right, int level) {
+        private HeadIndex(Node<S, T> node, Index<S, T> down, Index<S, T> right, int level) {
             super(node, down, right);
             this.level = level;
         }
 
-        HeadIndex(Index<S, T> down, Index<S, T> right, int level) {
+        private HeadIndex(Index<S, T> down, Index<S, T> right, int level) {
             super(down, right);
             this.level = level;
         }
 
-        HeadIndex(HeadIndex<S, T> down, Index<S, T> right) {
+        private HeadIndex(HeadIndex<S, T> down, Index<S, T> right) {
             super(down, right);
             this.level = down.level + 1;
         }
@@ -1646,21 +1647,41 @@ class DqCollection<K, E extends IDqElement<K>>
             implements Iterable<Node<I, J>>, Iterator<Node<I, J>> {
         /** The Constant serialVersionUID. */
         private static final long serialVersionUID = 6717821668181651376L;
-        final Node<I, J> node;
-        final Index<I, J> down;
+        private final Node<I, J> node;
+        private final Index<I, J> down;
 
-        private Index(Node<I, J> node, Index<I, J> down, Index<I, J> right) {
+        Index(Node<I, J> node, Index<I, J> down, Index<I, J> right) {
             super(right);
             this.node = node;
             this.down = down;
         }
 
-        private Index(Index<I, J> down, Index<I, J> right) {
+        Index(Index<I, J> down, Index<I, J> right) {
             this(down.node, down, right);
         }
 
         final boolean casRight(Index<I, J> cmp, Index<I, J> val) {
             return compareAndSet(cmp, val);
+        }
+
+        final I key() {
+            return node.getId();
+        }
+
+        final boolean casValue(J expect, J newValue) {
+            return node.casElement(expect, newValue);
+        }
+
+        final J value() {
+            return node.getElement();
+        }
+
+        final Index<I, J> down() {
+            return down;
+        }
+
+        final Node<I, J> node() {
+            return node;
         }
 
         final void setRight(Index<I, J> val) {
@@ -1673,11 +1694,11 @@ class DqCollection<K, E extends IDqElement<K>>
 
         final boolean link(Index<I, J> succ, Index<I, J> newSucc) {
             newSucc.setRight(succ);
-            return casRight(succ, newSucc);
+            return !indexesDeletedNode() && casRight(succ, newSucc);
         }
 
         final boolean unlink(Index<I, J> succ) {
-            return casRight(succ, succ.getRight());
+            return !indexesDeletedNode() && casRight(succ, succ.getRight());
         }
 
         /**
@@ -1686,8 +1707,7 @@ class DqCollection<K, E extends IDqElement<K>>
          */
         final boolean indexesDeletedNode() {
             if (node == null) return true;
-            J element = node.getElement();
-            return !node.isBaseHeader() && element == null;
+            return node.isDeleted();
         }
 
         /** {@inheritDoc} */

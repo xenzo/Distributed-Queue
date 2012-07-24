@@ -17,6 +17,7 @@ import static java.util.logging.Level.*;
 import static org.junit.Assert.*;
 
 import java.util.Comparator;
+import java.util.Map;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -39,26 +40,26 @@ public class DqCollectionsTest {
     private static IDqDeque<String, Elem> deque;
     private static IDqSolidOperator<String, Elem> operator;
 
-    @BeforeClass
-    public static void startUp() {
+    @BeforeClass public static void startUp() {
     }
 
-    @Before
-    public void setUp() {
-//        deque = DqCollections.convertToBlockingDeque(DqCollections.newDqCollection("SAME", null, 0, new Comparator<String>() {
-//            @Override
-//            public int compare(String o1, String o2) {
-//                if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "compare");
-//                // XXX must do something
-//                if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "compare");
-//                return 0;
-//            }
-//        }));
-//        operator = DqCollections.convert2SolidOperator(deque);
-        deque.add(new Elem("A"));
-        deque.add(new Elem("B"));
-        deque.add(new Elem("C"));
-        deque.add(new Elem("D"));
+    @Before public void setUp() {
+        Map<Object, IDqElement<Object>> map = DqCollections.convertTo(DqCollections.newInstance());
+        //        deque = DqCollections.convertToBlockingDeque(DqCollections.newDqCollection("SAME", null, 0, new Comparator<String>() {
+        //            @Override
+        //            public int compare(String o1, String o2) {
+        //                if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "compare");
+        //                // XXX must do something
+        //                if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "compare");
+        //                return 0;
+        //            }
+        //        }));
+        //        operator = DqCollections.convert2SolidOperator(deque);
+        //        deque.add(new Elem("A"));
+        //        deque.add(new Elem("B"));
+        //        deque.add(new Elem("C"));
+        //        deque.add(new Elem("D"));
+        map.put("KKK", "");
     }
 
     /**
@@ -66,12 +67,10 @@ public class DqCollectionsTest {
      * {@link com.tmax.probus.dq.collection.DqCollections#convert2SolidOperator(java.util.Collection)}
      * .
      */
-    @Test
-    public void testConvert2SolidOperator() {
+    @Test public void testConvert2SolidOperator() {
     }
 
-    @Test
-    public void testPoll() {
+    @Test public void testPoll() {
         Elem poll = deque.poll();
         assertEquals("A", poll.getIdentifier());
         assertEquals(3, deque.size());
@@ -93,8 +92,7 @@ public class DqCollectionsTest {
         assertEquals(4, operator.fullSize());
     }
 
-    @Test
-    public void testAdd() {
+    @Test public void testAdd() {
         try {
             deque.add(new Elem("C"));
             fail();
@@ -107,38 +105,33 @@ public class DqCollectionsTest {
         assertEquals(7, operator.fullSize());
     }
 
-    @Test
-    public void testOffer() {
+    @Test public void testOffer() {
         assertFalse(deque.offer(new Elem("C")));
     }
 
-    @Test
-    public void testRemoveSolid() {
+    @Test public void testRemoveSolid() {
         operator.removeSolidly("C");
         assertEquals(3, deque.size());
         assertEquals(3, operator.fullSize());
     }
 
-    @Test
-    public void testPollFirstLast() {
+    @Test public void testPollFirstLast() {
         operator.removeSolidly("A");
         assertEquals(3, deque.size());
         assertEquals(3, operator.fullSize());
-//        assertEquals("B", operator.putSolidly("B", new Elem("B")).getIdentifier());
+        //        assertEquals("B", operator.putSolidly("B", new Elem("B")).getIdentifier());
         assertEquals("D", deque.pollLast().getIdentifier());
         assertEquals("B", deque.pollFirst().getIdentifier());
     }
 
-    @Test
-    public void testConcurrency() {
+    @Test public void testConcurrency() {
         final CountDownLatch l = new CountDownLatch(1);
         final AtomicInteger a = new AtomicInteger(0);
         ExecutorService ec = Executors.newFixedThreadPool(5);
         ExecutorService ed = Executors.newFixedThreadPool(5);
         for (int i = 0; i < 5000; i++) {
             ec.submit(new Runnable() {
-                @Override
-                public void run() {
+                @Override public void run() {
                     try {
                         l.await();
                     } catch (InterruptedException ex) {
@@ -150,8 +143,7 @@ public class DqCollectionsTest {
         }
         for (int i = 0; i < 2500; i++) {
             ed.submit(new Runnable() {
-                @Override
-                public void run() {
+                @Override public void run() {
                     try {
                         l.await();
                         System.out.println(">> " + deque.takeFirst().getIdentifier());
@@ -163,8 +155,7 @@ public class DqCollectionsTest {
         }
         for (int i = 0; i < 2500; i++) {
             ed.submit(new Runnable() {
-                @Override
-                public void run() {
+                @Override public void run() {
                     try {
                         l.await();
                         System.out.println("\t<< " + deque.takeLast().getIdentifier());
@@ -197,8 +188,7 @@ public class DqCollectionsTest {
 
         // (non-Javadoc)
         // @see com.tmax.probus.dq.collection.IDqElement#getIdentifier()
-        @Override
-        public String getIdentifier() {
+        @Override public String getIdentifier() {
             return id_;
         }
     }
