@@ -13,6 +13,10 @@
 package com.tmax.probus.dq.collection;
 
 
+import java.lang.reflect.Proxy;
+import java.util.concurrent.ConcurrentMap;
+
+
 /**
  * A factory for creating DqCollection objects.
  * @author Kim, Dong iL
@@ -22,5 +26,34 @@ package com.tmax.probus.dq.collection;
  * @see IDqElement
  * @since 1.6
  */
-public class DqCollections {
+public class DqCollections<K, E extends IDqElement<K>> {
+    private DqCollection<K, E> newCollection(String id) {
+        return new DqCollection<K, E>(id, null, 0, null);
+    }
+
+    public ConcurrentMap<K, E> createConcurrentMap() {
+        final DqCollection<K, E> collection = newCollection("");
+        @SuppressWarnings("unchecked") final ConcurrentMap<K, E> instance =
+                (ConcurrentMap<K, E>) Proxy.newProxyInstance(collection.getClass().getClassLoader(),
+                    new Class[] { ConcurrentMap.class }, new MapProxyInvoker<K, E>(this, collection));
+        return instance;
+    }
+
+    public enum Types {
+        BlockingQueue(java.util.concurrent.BlockingQueue.class),
+        BlockingDeque(java.util.concurrent.BlockingDeque.class),
+        Stack(java.util.Stack.class),
+        ConcurrentMap(java.util.concurrent.ConcurrentMap.class),
+        ConcurrentNavigableMap(java.util.concurrent.ConcurrentNavigableMap.class),
+        SolidOperator(IDqSolidOperator.class);
+        private Types(Class<?> claz) {
+            claz_ = claz;
+        }
+
+        private Class<?> claz_;
+
+        public Class<?> getClazz() {
+            return claz_;
+        }
+    }
 }
