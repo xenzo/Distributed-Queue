@@ -35,7 +35,7 @@ public class DqCollections<K, E extends IDqElement<K>> {
         final DqCollection<K, E> collection = newCollection("");
         @SuppressWarnings("unchecked") final ConcurrentMap<K, E> instance =
                 (ConcurrentMap<K, E>) Proxy.newProxyInstance(collection.getClass().getClassLoader(),
-                    new Class[] { ConcurrentMap.class }, new MapProxyInvoker<K, E>(this, collection));
+                    new Class[] { ConcurrentMap.class }, new MapProxyInvoker<K, E>(collection));
         return instance;
     }
 

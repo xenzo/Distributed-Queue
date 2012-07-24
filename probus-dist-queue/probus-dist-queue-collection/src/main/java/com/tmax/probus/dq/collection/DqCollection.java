@@ -258,18 +258,9 @@ class DqCollection<K, E extends IDqElement<K>>
      * @return node holding key, or null if no such
      */
     private final Node<K, E> findNode(Comparable<K> key) {
-        while (true) {
-            Index<K, E> b = findPredecessorIndex(key);
-            while (true) {
-                Index<K, E> n = b.getRight();
-                if (n == null) return null;
-                if (!isValidStatus(b, n)) break;
-                int c = key.compareTo(n.key());
-                if (c == 0) return n.node();
-                if (c < 0) return null;
-                b = n;
-            }
-        }
+        Index<K, E> index = findIndex(key);
+        if (index != null) return index.node();
+        return null;
     }
 
     /**
@@ -283,18 +274,18 @@ class DqCollection<K, E extends IDqElement<K>>
     }
 
     private final Index<K, E> findIndex(Comparable<K> key) {
-        return _findIndex(findPredecessorIndex(key), key);
-    }
-
-    private final Index<K, E> _findIndex(Index<K, E> basis, Comparable<K> key) {
-        Index<K, E> b = basis;
-        Index<K, E> n = b.getRight();
-        if (n == null) return null;
-        if (!isValidStatus(b, n)) return findIndex(key);
-        int c = key.compareTo(n.key());
-        if (c == 0) return n;
-        if (c < 0) return null;
-        return _findIndex(n, key);
+        while (true) {
+            Index<K, E> b = findPredecessorIndex(key);
+            while (true) {
+                Index<K, E> n = b.getRight();
+                if (n == null) return null;
+                if (!isValidStatus(b, n)) break;
+                int c = key.compareTo(n.key());
+                if (c == 0) return n;
+                if (c < 0) return null;
+                b = n;
+            }
+        }
     }
 
     /**
@@ -312,8 +303,7 @@ class DqCollection<K, E extends IDqElement<K>>
         while (true) {
             Node<K, E> n = findNode(key);
             if (n == null) return null;
-            E v = n.getElement();
-            if (v != null) return v;
+            if (!n.isDeleted()) return n.getElement();
         }
     }
 
@@ -600,225 +590,192 @@ class DqCollection<K, E extends IDqElement<K>>
         return new Itr();
     }
 
-    /*-----------*/
-    /* stack api */
-    /*-----------*/
-    public final E pop() {
-        return removeFirst();
-    }
-
-    public final void push(final E e) {
-        addFirst(e);
-    }
-
-    /*---------*/
-    /* map api */
-    /*---------*/
-    public E put(K key, E value) {
-        if (value == null) throw new NullPointerException();
-        if (putSolidly(key, value)) return null;
-        else return value;
-    }
-
-    public E get(Object key) {
-        return findSolidly((K) key);
-    }
-
-    public boolean containsKey(Object key) {
-        @SuppressWarnings("unchecked") Node<K, E> node = findNode((Comparable<K>) key);
-        return node != null;
-    }
-
-    public boolean containsValue(Object value) {
-        if (value == null) throw new NullPointerException();
-        @SuppressWarnings("unchecked") E v = (E) value;
-        K key = v.getIdentifier();
-        return containsKey(key);
-    }
-
     /* --------- */
     /* deque api */
     /* --------- */
-    public final void addFirst(final E e) {
-        if (!offerFirst(e)) throw new IllegalStateException("FULL-or-EXISTS");
-    }
-
-    public final void addLast(final E e) {
-        if (!offerLast(e)) throw new IllegalStateException("FULL-or-EXISTS");
-    }
-
-    public final E peekFirst() {
+    //    public final void addFirst(final E e) {
+    //        if (!offerFirst(e)) throw new IllegalStateException("FULL-or-EXISTS");
+    //    }
+    //
+    //    public final void addLast(final E e) {
+    //        if (!offerLast(e)) throw new IllegalStateException("FULL-or-EXISTS");
+    //    }
+    //
+    /** {@inheritDoc} */
+    @Override public final E peekFirst() {
         return head_.successor().getElement();
     }
 
-    public final E peekLast() {
+    /** {@inheritDoc} */
+    @Override public final E peekLast() {
         return tail_.predecessor().getElement();
     }
 
-    public final E pollFirst() {
-        return unlinkFirstQ();
-    }
-
-    public final E pollFirst(final long timeout, final TimeUnit unit) throws InterruptedException {
-        long nanos = unit.toNanos(timeout);
-        E e = null;
-        while ((e = unlinkFirstQ()) == null) {
-            if (nanos <= 0) return null;
-            final Lock lock = lock_;
-            lock.lockInterruptibly();
-            try {
-                nanos = notEmpty_.awaitNanos(nanos);
-            } finally {
-                lock.unlock();
-            }
-        }
-        return e;
-    }
-
-    public final E pollLast() {
-        return unlinkLastQ();
-    }
-
-    public final E pollLast(final long timeout, final TimeUnit unit) throws InterruptedException {
-        long nanos = unit.toNanos(timeout);
-        E e = null;
-        while ((e = unlinkLastQ()) == null) {
-            if (nanos <= 0) return null;
-            final Lock lock = lock_;
-            lock.lockInterruptibly();
-            try {
-                nanos = notEmpty_.awaitNanos(nanos);
-            } finally {
-                lock.unlock();
-            }
-        }
-        return e;
-    }
-
-    public final boolean offerFirst(final E e) {
-        return linkFirst(newNode(e));
-    }
-
-    public final boolean offerFirst(final E e, final long timeout, final TimeUnit unit)
-            throws InterruptedException {
-        final Node<K, E> node = newNode(e);
-        long nanos = unit.toNanos(timeout);
-        while (!linkFirst(node)) {
-            if (nanos <= 0) return false;
-            final Lock lock = lock_;
-            lock.lockInterruptibly();
-            try {
-                nanos = notFull_.awaitNanos(nanos);
-            } finally {
-                lock.unlock();
-            }
-        }
-        return true;
-    }
-
-    public final boolean offerLast(final E e) {
-        return linkLast(newNode(e));
-    }
-
-    public final boolean offerLast(final E e, final long timeout, final TimeUnit unit)
-            throws InterruptedException {
-        final Node<K, E> node = newNode(e);
-        long nanos = unit.toNanos(timeout);
-        while (!linkLast(node)) {
-            if (nanos <= 0) return false;
-            final Lock lock = lock_;
-            lock.lockInterruptibly();
-            try {
-                nanos = notFull_.awaitNanos(nanos);
-            } finally {
-                lock.unlock();
-            }
-        }
-        return true;
-    }
-
-    public final E takeFirst() throws InterruptedException {
-        E e = null;
-        while ((e = unlinkFirstQ()) == null) {
-            final Lock lock = lock_;
-            lock.lock();
-            try {
-                notEmpty_.await();
-            } finally {
-                lock.unlock();
-            }
-        }
-        return e;
-    }
-
-    public final E takeLast() throws InterruptedException {
-        E e = null;
-        while ((e = unlinkLastQ()) == null) {
-            final Lock lock = lock_;
-            lock.lock();
-            try {
-                notEmpty_.await();
-            } finally {
-                lock.unlock();
-            }
-        }
-        return e;
-    }
-
-    public final void putFirst(final E e) throws InterruptedException {
-        final Node<K, E> node = newNode(e);
-        while (!linkFirst(node)) {
-            final Lock lock = lock_;
-            lock.lock();
-            try {
-                notFull_.await();
-            } finally {
-                lock.unlock();
-            }
-        }
-    }
-
-    public final void putLast(final E e) throws InterruptedException {
-        final Node<K, E> node = newNode(e);
-        while (!linkLast(node)) {
-            final Lock lock = lock_;
-            lock.lock();
-            try {
-                notFull_.await();
-            } finally {
-                lock.unlock();
-            }
-        }
-    }
-
-    public final E removeFirst() {
-        final E e = pollFirst();
-        if (e == null) throw new NoSuchElementException();
-        return e;
-    }
-
-    public final boolean removeFirstOccurrence(final Object o) {
-        if (o == null) return false;
-        @SuppressWarnings("unchecked") final Node<K, E> node = findNode(comparable((((E) o).getIdentifier())));
-        if (node == null || !node.isReal()) return false;
-        return node.delete();
-    }
-
-    public final E removeLast() {
-        final E e = pollLast();
-        if (e == null) throw new NoSuchElementException();
-        return e;
-    }
-
-    public final boolean removeLastOccurrence(final Object o) {
-        return removeFirstOccurrence(o);
-    }
-
-    public final Iterator<E> descendingIterator() {
-        return new DescendingItr();
-    }
-
-    public final int size() {
+    //
+    //    public final E pollFirst() {
+    //        return unlinkFirstQ();
+    //    }
+    //
+    //    public final E pollFirst(final long timeout, final TimeUnit unit) throws InterruptedException {
+    //        long nanos = unit.toNanos(timeout);
+    //        E e = null;
+    //        while ((e = unlinkFirstQ()) == null) {
+    //            if (nanos <= 0) return null;
+    //            final Lock lock = lock_;
+    //            lock.lockInterruptibly();
+    //            try {
+    //                nanos = notEmpty_.awaitNanos(nanos);
+    //            } finally {
+    //                lock.unlock();
+    //            }
+    //        }
+    //        return e;
+    //    }
+    //
+    //    public final E pollLast() {
+    //        return unlinkLastQ();
+    //    }
+    //
+    //    public final E pollLast(final long timeout, final TimeUnit unit) throws InterruptedException {
+    //        long nanos = unit.toNanos(timeout);
+    //        E e = null;
+    //        while ((e = unlinkLastQ()) == null) {
+    //            if (nanos <= 0) return null;
+    //            final Lock lock = lock_;
+    //            lock.lockInterruptibly();
+    //            try {
+    //                nanos = notEmpty_.awaitNanos(nanos);
+    //            } finally {
+    //                lock.unlock();
+    //            }
+    //        }
+    //        return e;
+    //    }
+    //
+    //    public final boolean offerFirst(final E e) {
+    //        return linkFirst(newNode(e));
+    //    }
+    //
+    //    public final boolean offerFirst(final E e, final long timeout, final TimeUnit unit)
+    //            throws InterruptedException {
+    //        final Node<K, E> node = newNode(e);
+    //        long nanos = unit.toNanos(timeout);
+    //        while (!linkFirst(node)) {
+    //            if (nanos <= 0) return false;
+    //            final Lock lock = lock_;
+    //            lock.lockInterruptibly();
+    //            try {
+    //                nanos = notFull_.awaitNanos(nanos);
+    //            } finally {
+    //                lock.unlock();
+    //            }
+    //        }
+    //        return true;
+    //    }
+    //
+    //    public final boolean offerLast(final E e) {
+    //        return linkLast(newNode(e));
+    //    }
+    //
+    //    public final boolean offerLast(final E e, final long timeout, final TimeUnit unit)
+    //            throws InterruptedException {
+    //        final Node<K, E> node = newNode(e);
+    //        long nanos = unit.toNanos(timeout);
+    //        while (!linkLast(node)) {
+    //            if (nanos <= 0) return false;
+    //            final Lock lock = lock_;
+    //            lock.lockInterruptibly();
+    //            try {
+    //                nanos = notFull_.awaitNanos(nanos);
+    //            } finally {
+    //                lock.unlock();
+    //            }
+    //        }
+    //        return true;
+    //    }
+    //
+    //    public final E takeFirst() throws InterruptedException {
+    //        E e = null;
+    //        while ((e = unlinkFirstQ()) == null) {
+    //            final Lock lock = lock_;
+    //            lock.lock();
+    //            try {
+    //                notEmpty_.await();
+    //            } finally {
+    //                lock.unlock();
+    //            }
+    //        }
+    //        return e;
+    //    }
+    //
+    //    public final E takeLast() throws InterruptedException {
+    //        E e = null;
+    //        while ((e = unlinkLastQ()) == null) {
+    //            final Lock lock = lock_;
+    //            lock.lock();
+    //            try {
+    //                notEmpty_.await();
+    //            } finally {
+    //                lock.unlock();
+    //            }
+    //        }
+    //        return e;
+    //    }
+    //
+    //    public final void putFirst(final E e) throws InterruptedException {
+    //        final Node<K, E> node = newNode(e);
+    //        while (!linkFirst(node)) {
+    //            final Lock lock = lock_;
+    //            lock.lock();
+    //            try {
+    //                notFull_.await();
+    //            } finally {
+    //                lock.unlock();
+    //            }
+    //        }
+    //    }
+    //
+    //    public final void putLast(final E e) throws InterruptedException {
+    //        final Node<K, E> node = newNode(e);
+    //        while (!linkLast(node)) {
+    //            final Lock lock = lock_;
+    //            lock.lock();
+    //            try {
+    //                notFull_.await();
+    //            } finally {
+    //                lock.unlock();
+    //            }
+    //        }
+    //    }
+    //
+    //    public final E removeFirst() {
+    //        final E e = pollFirst();
+    //        if (e == null) throw new NoSuchElementException();
+    //        return e;
+    //    }
+    //
+    //    public final boolean removeFirstOccurrence(final Object o) {
+    //        if (o == null) return false;
+    //        @SuppressWarnings("unchecked") final Node<K, E> node = findNode(comparable((((E) o).getIdentifier())));
+    //        if (node == null || !node.isReal()) return false;
+    //        return node.delete();
+    //    }
+    //
+    //    public final E removeLast() {
+    //        final E e = pollLast();
+    //        if (e == null) throw new NoSuchElementException();
+    //        return e;
+    //    }
+    //
+    //    public final boolean removeLastOccurrence(final Object o) {
+    //        return removeFirstOccurrence(o);
+    //    }
+    //
+    //    public final Iterator<E> descendingIterator() {
+    //        return new DescendingItr();
+    //    }
+    /** {@inheritDoc} */
+    @Override public final int size() {
         return count_.intValue();
     }
 
@@ -869,14 +826,46 @@ class DqCollection<K, E extends IDqElement<K>>
     }
 
     /** {@inheritDoc} */
-    @Override public boolean putSolidly(final K key, final E value) {
+    @Override public E get(K key) {
+        Node<K, E> node = findNode(comparable(key));
+        return node.isReal() ? node.getElement() : null;
+    }
+
+    /** {@inheritDoc} */
+    @Override public E remove(K key) {
+        Node<K, E> node = findNode(comparable(key));
+        return node.delete() ? node.getElement() : null;
+    }
+
+    /** {@inheritDoc} */
+    @Override public boolean linkFirst(E value) {
+        Node<K, E> node = newNode(value);
+        return linkFirst(node);
+    }
+
+    /** {@inheritDoc} */
+    @Override public boolean linkLast(E value) {
+        Node<K, E> node = newNode(value);
+        return linkLast(node);
+    }
+
+    /** {@inheritDoc} */
+    @Override public E unlinkFirst() {
+        return unlinkFirstQ();
+    }
+
+    /** {@inheritDoc} */
+    @Override public E unlinkLast() {
+        return unlinkLastQ();
+    }
+
+    /** {@inheritDoc} */
+    @Override public E putSolidly(final K key, final E value, final boolean putIfAbsent) {
         final Node<K, E> node = newNode(value);
-        final E exists = findSolidly(key);
-        if (exists == null) {
-            return linkLast(node);
-        } else {
-            return replaceSolidly(node);
-        }
+        final E exists = getSolidly(key);
+        if (exists == null && linkLast(node)) return null;
+        else if (!putIfAbsent) return replaceSolidly(node);
+        return value;
     }
 
     /** {@inheritDoc} */
@@ -888,12 +877,12 @@ class DqCollection<K, E extends IDqElement<K>>
     }
 
     /** {@inheritDoc} */
-    @Override public final E findSolidly(final K key) {
+    @Override public final E getSolidly(final K key) {
         return doGet(key);
     }
 
     /** {@inheritDoc} */
-    @Override public final int fullSize() {
+    @Override public final int sizeSolidly() {
         return fullCount_.intValue();
     }
 
@@ -902,12 +891,13 @@ class DqCollection<K, E extends IDqElement<K>>
      * @param node the node
      * @return the node
      */
-    private final boolean replaceSolidly(final Node<K, E> node) {
+    private final E replaceSolidly(final Node<K, E> node) {
+        if (node == null) throw new NullPointerException();
         if (node == NULL_NODE) throw new IllegalArgumentException("NULL NODE");
         final Node<K, E> existNode = findNode(comparable(node.getId()));
         E oldElement = existNode.getElement();
-        if (existNode != null && node != existNode) return existNode.casElement(oldElement, node.getElement());
-        else return false;
+        if (existNode != null && node != existNode && existNode.casElement(oldElement, node.getElement())) return oldElement;
+        return null;
     }
 
     /**
@@ -916,6 +906,7 @@ class DqCollection<K, E extends IDqElement<K>>
      * @return the e
      */
     private final E unlinkNodeSolidly(final Node<K, E> node) {
+        if (node == null) throw new NullPointerException();
         if (node == NULL_NODE) throw new IllegalArgumentException("NULL NODE");
         E existNode = doRemove(node.getId(), null);
         if (existNode == null) throw new NoSuchElementException("NOT EXISTS");
@@ -930,85 +921,72 @@ class DqCollection<K, E extends IDqElement<K>>
     /*-----------*/
     /* queue api */
     /*-----------*/
-    public final E peek() {
-        return peekFirst();
-    }
-
-    public final E poll() {
-        return pollFirst();
-    }
-
-    public final E poll(final long timeout, final TimeUnit unit)
-            throws InterruptedException {
-        return pollFirst(timeout, unit);
-    }
-
-    public final void put(final E e) throws InterruptedException {
-        putLast(e);
-    }
-
-    public final boolean offer(final E e) {
-        return offerLast(e);
-    }
-
-    public final boolean offer(final E e, final long timeout, final TimeUnit unit)
-            throws InterruptedException {
-        return offerLast(e, timeout, unit);
-    }
-
-    public final int remainingCapacity() {
-        return maxSize_ - count_.intValue();
-    }
-
-    public final E take() throws InterruptedException {
-        return takeFirst();
-    }
-
-    public final int drainTo(final Collection<? super E> collection) {
-        return drainTo(collection, Integer.MAX_VALUE);
-    }
-
-    public final int drainTo(final Collection<? super E> collection, final int max) {
-        if (collection == null) throw new NullPointerException();
-        final int n = Math.min(max, count_.intValue());
-        for (int i = 0; i < n; i++) {
-            E e = unlinkFirstQ();
-            if (e != null) collection.add(e);
-            else break;
-        }
-        return n;
-    }
-
+    //    public final E peek() {
+    //        return peekFirst();
+    //    }
+    //
+    //    public final E poll() {
+    //        return pollFirst();
+    //    }
+    //
+    //    public final E poll(final long timeout, final TimeUnit unit)
+    //            throws InterruptedException {
+    //        return pollFirst(timeout, unit);
+    //    }
+    //
+    //    public final void put(final E e) throws InterruptedException {
+    //        putLast(e);
+    //    }
+    //
+    //    public final boolean offer(final E e) {
+    //        return offerLast(e);
+    //    }
+    //
+    //    public final boolean offer(final E e, final long timeout, final TimeUnit unit)
+    //            throws InterruptedException {
+    //        return offerLast(e, timeout, unit);
+    //    }
+    //
+    //    public final int remainingCapacity() {
+    //        return maxSize_ - count_.intValue();
+    //    }
+    //
+    //    public final E take() throws InterruptedException {
+    //        return takeFirst();
+    //    }
+    //    public final int drainTo(final Collection<? super E> collection) {
+    //        return drainTo(collection, Integer.MAX_VALUE);
+    //    }
+    //
+    //    public final int drainTo(final Collection<? super E> collection, final int max) {
+    //        if (collection == null) throw new NullPointerException();
+    //        final int n = Math.min(max, count_.intValue());
+    //        for (int i = 0; i < n; i++) {
+    //            E e = unlinkFirstQ();
+    //            if (e != null) collection.add(e);
+    //            else break;
+    //        }
+    //        return n;
+    //    }
     /*----------*/
     /* unit job */
     /*----------*/
-    /**
-     * BASE UNIT JOB.
-     * @param node the node
-     * @return true, if successful
-     */
-    private final boolean linkAfterQ(Node<K, E> prevNode, Node<K, E> node) {
-        while (true) {
-            if (prevNode.isMarked()) return false;
-            if (prevNode.append(node)) return true;
-        }
+    private final void linkFirstQ(Node<K, E> node) {
+        while (!head_.successor().prepend(node))
+            ;
     }
 
-    private final boolean linkBeforeQ(Node<K, E> nextNode, Node<K, E> node) {
-        while (true) {
-            if (nextNode.isMarked()) return false;
-            if (nextNode.prepend(node)) return true;
-        }
+    private final void linkLastQ(Node<K, E> node) {
+        while (!tail_.predecessor().append(node))
+            ;
     }
 
     private final boolean linkFirst(final Node<K, E> node) {
+        if (node == null) throw new NullPointerException();
         if (node == NULL_NODE) throw new IllegalArgumentException("NULL NODE");
         if (isFull()) return false;
         if (doPut(node, true) != null) return false;
-        if (!linkBeforeQ(head_.successor(), node)) {
-            doRemove(node);
-            return false;
-        }
+        linkFirstQ(node);
         afterLink(node);
         return true;
     }
@@ -1019,13 +997,11 @@ class DqCollection<K, E extends IDqElement<K>>
      * @return true, if successful
      */
     private final boolean linkLast(final Node<K, E> node) {
+        if (node == null) throw new NullPointerException();
         if (node == NULL_NODE) throw new IllegalArgumentException("NULL NODE");
         if (isFull()) return false;
         if (doPut(node, true) != null) return false;
-        if (!linkAfterQ(tail_.predecessor(), node)) {
-            doRemove(node);
-            return false;
-        }
+        linkLastQ(node);
         afterLink(node);
         return true;
     }
@@ -1178,7 +1154,7 @@ class DqCollection<K, E extends IDqElement<K>>
             final Node<K, E> n = lastRet;
             if (isValid(n)) throw new IllegalStateException();
             lastRet = null;
-            if (n.getElement() != null) removeLastOccurrence(n);
+            //            if (n.getElement() != null) removeLastOccurrence(n);
         }
 
         /**
@@ -1301,9 +1277,9 @@ class DqCollection<K, E extends IDqElement<K>>
      * @param <X> the key type
      * @param <Y> the element type
      */
-    private final class Node<X, Y extends IDqElement<X>>
+    private static final class Node<X, Y extends IDqElement<X>>
             extends AtomicMarkableReference<Node<X, Y>>
-            implements Serializable, Iterator<Node<X, Y>>, Iterable<Node<X, Y>> {
+            implements Serializable {
         /** The Constant serialVersionUID. */
         private static final long serialVersionUID = -3008752467874171657L;
         /** The prev. */
@@ -1352,21 +1328,12 @@ class DqCollection<K, E extends IDqElement<K>>
             return compareAndSet(expect, node, false, false);
         }
 
-        private final boolean casBefore(Node<X, Y> expect, Node<X, Y> node) {
-            return before_.compareAndSet(expect, node);
-        }
-
         private final Node<X, Y> getBefore() {
             return before_.get();
         }
 
         private final Node<X, Y> getAfter() {
             return getReference();
-        }
-
-        private final Node<X, Y> getAfterNoneMarked() {
-            final Node<X, Y> node = getAfter();
-            return !node.isMarked() ? node : node.getAfter();
         }
 
         public final boolean delete() {
@@ -1378,11 +1345,6 @@ class DqCollection<K, E extends IDqElement<K>>
             }
             nextNode.predecessor();
             return true;
-        }
-
-        public final Node<X, Y> liveSuccessor() {
-            Node<X, Y> node = successor();
-            return (node == NULL_NODE) ? null : node;
         }
 
         public final Node<X, Y> successor() {
@@ -1420,18 +1382,6 @@ class DqCollection<K, E extends IDqElement<K>>
                 if (nextNode == target) return node;
                 node = nextNode;
             }
-        }
-
-        /**
-         * Returns the previous non-deleted node, patching up pointers as
-         * needed. Returns null if this node is header so has no successor. May
-         * also return null if this node is deleted, so doesn't have a distinct
-         * predecessor.
-         * @return predecessor or null if not found
-         */
-        public final Node<X, Y> livePredecessor() {
-            Node<X, Y> node = predecessor();
-            return (node == NULL_NODE) ? null : node;
         }
 
         public final Node<X, Y> predecessor() {
@@ -1501,17 +1451,13 @@ class DqCollection<K, E extends IDqElement<K>>
          * @param node the exist node
          */
         final void gc() {
+            if (!isMarked()) return;
             setBefore(null);
             set(null, true);
-            setElement(null);
         }
 
         private final Y getElement() {
             return element_.get();
-        }
-
-        private final void setElement(Y elem) {
-            element_.set(elem);
         }
 
         private final boolean casElement(Y elem, Y newElem) {
@@ -1519,9 +1465,9 @@ class DqCollection<K, E extends IDqElement<K>>
         }
 
         /** {@inheritDoc} */
-        @SuppressWarnings("unchecked") @Override public final boolean equals(final Object obj) {
+        @Override public final boolean equals(final Object obj) {
             if (obj == null || element_ == null || getElement() == null) return false;
-            if (obj instanceof Node) return getElement().equals(((Node<K, E>) obj).getElement());
+            if (obj instanceof Node) return getElement().equals(((Node) obj).getElement());
             return super.equals(obj);
         }
 
@@ -1583,38 +1529,10 @@ class DqCollection<K, E extends IDqElement<K>>
             if (isBaseHeader() || getElement() == null) return null;
             return new AbstractMap.SimpleImmutableEntry<X, Y>(getId(), getElement());
         }
-
-        /** {@inheritDoc} */
-        @Override public Iterator<Node<X, Y>> iterator() {
-            return this;
-        }
-
-        /** {@inheritDoc} */
-        @Override public boolean hasNext() {
-            while (true) {
-                Node<X, Y> after = getAfterNoneMarked();
-                if (after != null) {
-                    if (after.isReal() && !isMarked() && after.getElement() != null) return true;
-                    if (after == NULL_NODE) break;
-                    else set(after.getAfterNoneMarked(), false);
-                }
-            }
-            return false;
-        }
-
-        /** {@inheritDoc} */
-        @Override public Node<X, Y> next() {
-            return getAfterNoneMarked();
-        }
-
-        /** {@inheritDoc} */
-        @Override public void remove() {
-            throw new UnsupportedOperationException();
-        }
     }
 
     /** Nodes heading each level keep track of their level. */
-    private final class HeadIndex<S, T extends IDqElement<S>> extends Index<S, T> {
+    private static final class HeadIndex<S, T extends IDqElement<S>> extends Index<S, T> {
         /** The Constant serialVersionUID. */
         private static final long serialVersionUID = 3547797323824693918L;
         final int level;
@@ -1642,7 +1560,7 @@ class DqCollection<K, E extends IDqElement<K>>
      * types and are handled in different ways, that can't nicely be captured by
      * placing field in a shared abstract class.
      */
-    private class Index<I, J extends IDqElement<I>>
+    private static class Index<I, J extends IDqElement<I>>
             extends AtomicReference<Index<I, J>>
             implements Iterable<Node<I, J>>, Iterator<Node<I, J>> {
         /** The Constant serialVersionUID. */

@@ -38,13 +38,17 @@ public interface IDqSolidOperator<K, V> {
      * @param key the key
      * @return the e
      */
-    V findSolidly(K key);
+    V getSolidly(K key);
+
+    V get(K key);
 
     /**
      * 전체 노드의 갯수
      * @return the int
      */
-    int fullSize();
+    int sizeSolidly();
+
+    int size();
 
     /**
      * 아이디를 반환한다.
@@ -68,7 +72,7 @@ public interface IDqSolidOperator<K, V> {
      * @param value the value
      * @return the v
      */
-    boolean putSolidly(K key, V value);
+    V putSolidly(K key, V value, boolean putIfAbsent);
 
     /**
      * Removes the item.
@@ -76,4 +80,18 @@ public interface IDqSolidOperator<K, V> {
      * @return the e
      */
     V removeSolidly(K key);
+
+    V remove(K key);
+
+    boolean linkFirst(V value);
+
+    boolean linkLast(V value);
+
+    V unlinkFirst();
+
+    V unlinkLast();
+
+    V peekFirst();
+
+    V peekLast();
 }

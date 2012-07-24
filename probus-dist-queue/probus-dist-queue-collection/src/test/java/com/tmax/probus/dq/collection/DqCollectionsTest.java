@@ -74,7 +74,7 @@ public class DqCollectionsTest {
         Elem poll = deque.poll();
         assertEquals("A", poll.getIdentifier());
         assertEquals(3, deque.size());
-        assertEquals(4, operator.fullSize());
+        assertEquals(4, operator.sizeSolidly());
         deque.poll();
         deque.poll();
         deque.poll();
@@ -89,7 +89,7 @@ public class DqCollectionsTest {
         } catch (InterruptedException ex) {
             fail();
         }
-        assertEquals(4, operator.fullSize());
+        assertEquals(4, operator.sizeSolidly());
     }
 
     @Test public void testAdd() {
@@ -102,7 +102,7 @@ public class DqCollectionsTest {
         deque.add(new Elem("F"));
         deque.add(new Elem("G"));
         assertEquals(7, deque.size());
-        assertEquals(7, operator.fullSize());
+        assertEquals(7, operator.sizeSolidly());
     }
 
     @Test public void testOffer() {
@@ -112,13 +112,13 @@ public class DqCollectionsTest {
     @Test public void testRemoveSolid() {
         operator.removeSolidly("C");
         assertEquals(3, deque.size());
-        assertEquals(3, operator.fullSize());
+        assertEquals(3, operator.sizeSolidly());
     }
 
     @Test public void testPollFirstLast() {
         operator.removeSolidly("A");
         assertEquals(3, deque.size());
-        assertEquals(3, operator.fullSize());
+        assertEquals(3, operator.sizeSolidly());
         //        assertEquals("B", operator.putSolidly("B", new Elem("B")).getIdentifier());
         assertEquals("D", deque.pollLast().getIdentifier());
         assertEquals("B", deque.pollFirst().getIdentifier());
@@ -173,7 +173,7 @@ public class DqCollectionsTest {
         }
         assertEquals(5000, a.intValue());
         assertEquals(4, deque.size());
-        assertEquals(5004, operator.fullSize());
+        assertEquals(5004, operator.sizeSolidly());
     }
 
     private static class Elem implements IDqElement<String> {

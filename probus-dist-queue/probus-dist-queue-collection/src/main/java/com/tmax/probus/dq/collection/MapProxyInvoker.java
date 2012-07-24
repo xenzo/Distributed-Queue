@@ -38,12 +38,12 @@ class MapProxyInvoker<K, E extends IDqElement<K>>
 
     /** {@inheritDoc} */
     @Override public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        return null;
+        return method.invoke(proxy, args);
     }
 
     /** {@inheritDoc} */
     @Override public E putIfAbsent(K key, E value) {
-        return map_.putSolidly(key, value, true) ? null : map_.get(key);
+        return map_.putSolidly(key, value, true);
     }
 
     /** {@inheritDoc} */
@@ -57,7 +57,7 @@ class MapProxyInvoker<K, E extends IDqElement<K>>
     }
 
     /** {@inheritDoc} */
-    @Override public boolean replace(K arg0, E arg1, E arg2) {
+    @Override public boolean replace(K key, E oldValue, E newValue) {
         return false;
     }
 
