@@ -34,27 +34,36 @@ public interface IDqSolidOperator<K, V> {
     List<V> clearTimedOutSolidly(long timeout, TimeUnit unit);
 
     /**
-     * 전체 노드중에서 특정 키를 가진 노드를 찾는다.
+     * Gets the.
      * @param key the key
-     * @return the e
+     * @return the v
      */
-    V getSolidly(K key);
-
     V get(K key);
 
     /**
-     * 전체 노드의 갯수
-     * @return the int
+     * Gets the first.
+     * @return the first
      */
-    int sizeSolidly();
-
-    int size();
+    V getFirst();
 
     /**
      * 아이디를 반환한다.
      * @return the id
      */
     String getId();
+
+    /**
+     * Gets the last.
+     * @return the last
+     */
+    V getLast();
+
+    /**
+     * 전체 노드중에서 특정 키를 가진 노드를 찾는다.
+     * @param key the key
+     * @return the e
+     */
+    V getSolidly(K key);
 
     /**
      * DqCollection은 orphan 리스트가 존재할 수도 있기 때문에 그 해결책 중 하나로 논리적으로 head와 tail의
@@ -67,12 +76,42 @@ public interface IDqSolidOperator<K, V> {
     List<V> getTimedOutSolidly(long timeout, TimeUnit unit);
 
     /**
+     * Link first.
+     * @param value the value
+     * @return true, if successful
+     */
+    boolean linkFirst(V value);
+
+    /**
+     * Link last.
+     * @param value the value
+     * @return true, if successful
+     */
+    boolean linkLast(V value);
+
+    /**
      * Put solidly.
      * @param key the key
      * @param value the value
+     * @param putIfAbsent the put if absent
      * @return the v
      */
     V putSolidly(K key, V value, boolean putIfAbsent);
+
+    /**
+     * Removes the.
+     * @param key the key
+     * @return the v
+     */
+    V remove(K key);
+
+    /**
+     * Removes the.
+     * @param key the key
+     * @param expectValue the expect value
+     * @return the v
+     */
+    V remove(K key, V expectValue);
 
     /**
      * Removes the item.
@@ -81,21 +120,43 @@ public interface IDqSolidOperator<K, V> {
      */
     V removeSolidly(K key);
 
-    V remove(K key);
-
+    /**
+     * Removes the solidly.
+     * @param key the key
+     * @param expectValue the expect value
+     * @return the v
+     */
     V removeSolidly(K key, V expectValue);
 
-    V remove(K key, V expectValue);
+    /**
+     * Size.
+     * @return the int
+     */
+    int size();
 
-    boolean linkFirst(V value);
+    /**
+     * 전체 노드의 갯수.
+     * @return the int
+     */
+    int sizeSolidly();
 
-    boolean linkLast(V value);
-
+    /**
+     * Unlink first.
+     * @return the v
+     */
     V unlinkFirst();
 
+    V unlinkFirst(final long timeout, final TimeUnit unit) throws InterruptedException;
+
+    V takeFirst() throws InterruptedException;
+
+    /**
+     * Unlink last.
+     * @return the v
+     */
     V unlinkLast();
 
-    V peekFirst();
+    V unlinkLast(final long timeout, final TimeUnit unit) throws InterruptedException;
 
-    V peekLast();
+    V takeLast() throws InterruptedException;
 }

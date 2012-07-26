@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicMarkableReference;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
@@ -92,12 +92,10 @@ class DqCollection<K, E extends IDqElement<K>>
     private final transient Node<K, E> head_;
     /** The tail. */
     private final transient Node<K, E> tail_;
-    /** The maximum size. */
-    private int maxSize_;
     /** head와 tail 사이의 노드 갯수. */
-    private final transient AtomicInteger count_ = new AtomicInteger(0);
+    private final transient AtomicLong count_ = new AtomicLong(0);
     /** repo에 존재하는 전체 노드 갯수. */
-    private final transient AtomicInteger fullCount_ = new AtomicInteger(0);
+    private final transient AtomicLong fullCount_ = new AtomicLong(0);
     /** The lock_. */
     private final transient Lock lock_ = new ReentrantLock();
     /** Wait queue for waiting takes. */
@@ -121,17 +119,16 @@ class DqCollection<K, E extends IDqElement<K>>
      * @param maxSize the max size
      * @param repo the repo
      */
-    DqCollection(final String id, final IDqItemEventListener<E> listener, final int maxSize, Comparator<K> comparator) {
+    DqCollection(final String id, final IDqItemEventListener<E> listener, Comparator<K> comparator) {
         if (id == null) throw new NullPointerException("IDqCollection ID is null");
         id_ = id;
         listener_ = (listener == null ? new DoNothingEventListener() : listener);
-        maxSize_ = (maxSize <= 0) ? Integer.MAX_VALUE : maxSize;
         head_ = tail_ = NULL_NODE;
         comparator_ = comparator;
     }
 
     DqCollection(final String id) {
-        this(id, null, 0, null);
+        this(id, null, null);
     }
 
     /*----------------------*/
@@ -178,7 +175,7 @@ class DqCollection<K, E extends IDqElement<K>>
      * Comparable, which may cause ClassCastException, which is propagated back
      * to caller.
      */
-    @SuppressWarnings("unchecked") Comparable<K> comparable(K key)
+    @SuppressWarnings("unchecked") private final Comparable<K> comparable(K key)
             throws ClassCastException {
         if (key == null) throw new NullPointerException();
         if (comparator_ != null) return new ComparableUsingComparator<K>(key, comparator_);
@@ -221,9 +218,8 @@ class DqCollection<K, E extends IDqElement<K>>
                     }
                 }
                 Index<K, E> d = q.down();
-                if (d != null) {
-                    q = d;
-                } else return q;
+                if (d != null) q = d;
+                else return q;
             }
         }
     }
@@ -263,6 +259,12 @@ class DqCollection<K, E extends IDqElement<K>>
         return null;
     }
 
+    private final Node<K, E> findNode(K key) {
+        Index<K, E> index = findIndex(key);
+        if (index != null) return index.node();
+        return null;
+    }
+
     /**
      * Checks if is valid status.
      * @param predecessor the predecessor
@@ -273,6 +275,11 @@ class DqCollection<K, E extends IDqElement<K>>
         return successor == predecessor.getRight() && !successor.indexesDeletedNode() && !predecessor.indexesDeletedNode();
     }
 
+    /**
+     * Find index.
+     * @param key the key
+     * @return the index
+     */
     private final Index<K, E> findIndex(Comparable<K> key) {
         while (true) {
             Index<K, E> b = findPredecessorIndex(key);
@@ -286,6 +293,16 @@ class DqCollection<K, E extends IDqElement<K>>
                 b = n;
             }
         }
+    }
+
+    /**
+     * Find index.
+     * @param okey the okey
+     * @return the index
+     */
+    private final Index<K, E> findIndex(K okey) {
+        Comparable<K> key = comparable(okey);
+        return findIndex(key);
     }
 
     /**
@@ -586,10 +603,9 @@ class DqCollection<K, E extends IDqElement<K>>
         return node != null && node.isReal();
     }
 
-    public final Iterator<E> iterator() {
-        return new Itr();
-    }
-
+    //    public final Iterator<E> iterator() {
+    //        return new Itr();
+    //    }
     /* --------- */
     /* deque api */
     /* --------- */
@@ -601,16 +617,6 @@ class DqCollection<K, E extends IDqElement<K>>
     //        if (!offerLast(e)) throw new IllegalStateException("FULL-or-EXISTS");
     //    }
     //
-    /** {@inheritDoc} */
-    @Override public final E peekFirst() {
-        return head_.successor().getElement();
-    }
-
-    /** {@inheritDoc} */
-    @Override public final E peekLast() {
-        return tail_.predecessor().getElement();
-    }
-
     //
     //    public final E pollFirst() {
     //        return unlinkFirstQ();
@@ -933,56 +939,80 @@ class DqCollection<K, E extends IDqElement<K>>
         return node.getElement();
     }
 
-    /*-----------*/
-    /* queue api */
-    /*-----------*/
-    //    public final E peek() {
-    //        return peekFirst();
-    //    }
-    //
-    //    public final E poll() {
-    //        return pollFirst();
-    //    }
-    //
-    //    public final E poll(final long timeout, final TimeUnit unit)
-    //            throws InterruptedException {
-    //        return pollFirst(timeout, unit);
-    //    }
-    //
-    //    public final void put(final E e) throws InterruptedException {
-    //        putLast(e);
-    //    }
-    //
-    //    public final boolean offer(final E e) {
-    //        return offerLast(e);
-    //    }
-    //
-    //    public final boolean offer(final E e, final long timeout, final TimeUnit unit)
-    //            throws InterruptedException {
-    //        return offerLast(e, timeout, unit);
-    //    }
-    //
-    //    public final int remainingCapacity() {
-    //        return maxSize_ - count_.intValue();
-    //    }
-    //
-    //    public final E take() throws InterruptedException {
-    //        return takeFirst();
-    //    }
-    //    public final int drainTo(final Collection<? super E> collection) {
-    //        return drainTo(collection, Integer.MAX_VALUE);
-    //    }
-    //
-    //    public final int drainTo(final Collection<? super E> collection, final int max) {
-    //        if (collection == null) throw new NullPointerException();
-    //        final int n = Math.min(max, count_.intValue());
-    //        for (int i = 0; i < n; i++) {
-    //            E e = unlinkFirstQ();
-    //            if (e != null) collection.add(e);
-    //            else break;
-    //        }
-    //        return n;
-    //    }
+    /** {@inheritDoc} */
+    @Override public final E getFirst() {
+        return head_.successor().getElement();
+    }
+
+    /** {@inheritDoc} */
+    @Override public final E getLast() {
+        return tail_.predecessor().getElement();
+    }
+
+    /** {@inheritDoc} */
+    @Override public E unlinkFirst(long timeout, TimeUnit unit) throws InterruptedException {
+        long nanos = unit.toNanos(timeout);
+        final Lock lock = lock_;
+        lock.lockInterruptibly();
+        try {
+            E x;
+            while ((x = unlinkFirstQ()) == null) {
+                if (nanos <= 0)
+                    return null;
+                nanos = notEmpty_.awaitNanos(nanos);
+            }
+            return x;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override public E takeFirst() throws InterruptedException {
+        final Lock lock = lock_;
+        lock.lock();
+        try {
+            E x;
+            while ((x = unlinkFirstQ()) == null)
+                notEmpty_.await();
+            return x;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override public E unlinkLast(long timeout, TimeUnit unit) throws InterruptedException {
+        long nanos = unit.toNanos(timeout);
+        final Lock lock = lock_;
+        lock.lockInterruptibly();
+        try {
+            E x;
+            while ((x = unlinkLastQ()) == null) {
+                if (nanos <= 0)
+                    return null;
+                nanos = notEmpty_.awaitNanos(nanos);
+            }
+            return x;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override public E takeLast() throws InterruptedException {
+        final Lock lock = lock_;
+        lock.lock();
+        try {
+            E x;
+            while ((x = unlinkLastQ()) == null)
+                notEmpty_.await();
+            return x;
+        } finally {
+            lock.unlock();
+        }
+    }
+
     /*----------*/
     /* unit job */
     /*----------*/
@@ -1085,8 +1115,8 @@ class DqCollection<K, E extends IDqElement<K>>
      * Checks if is full.
      * @return true, if is full
      */
-    private final boolean isFull() {
-        return count_.intValue() >= maxSize_ || fullCount_.intValue() >= Integer.MAX_VALUE;
+    protected final boolean isFull() {
+        return false;
     }
 
     /**
@@ -1123,145 +1153,145 @@ class DqCollection<K, E extends IDqElement<K>>
         }
     }
 
-    /** The Class AbstractItr. */
-    private abstract class AbstractItr implements Iterator<E> {
-        /** The next. */
-        private Node<K, E> next;
-        /** The next item. */
-        private E nextItem;
-        /** The last ret. */
-        private Node<K, E> lastRet;
-
-        /** Instantiates a new abstract itr. */
-        private AbstractItr() {
-            final Lock lock = lock_;
-            lock.lock();
-            try {
-                next = firstNode();
-                nextItem = isValid(next) ? next.getElement() : null;
-            } finally {
-                lock.unlock();
-            }
-        }
-
-        /**
-         * Checks for next.
-         * @return true, if successful
-         */
-        @Override public boolean hasNext() {
-            return isValid(next);
-        }
-
-        /**
-         * Next.
-         * @return the e
-         */
-        @Override public E next() {
-            if (!isValid(next)) throw new NoSuchElementException();
-            lastRet = next;
-            final E e = nextItem;
-            advance();
-            return e;
-        }
-
-        /** Removes the. */
-        @Override public void remove() {
-            final Node<K, E> n = lastRet;
-            if (isValid(n)) throw new IllegalStateException();
-            lastRet = null;
-            //            if (n.getElement() != null) removeLastOccurrence(n);
-        }
-
-        /**
-         * First node.
-         * @return the node
-         */
-        abstract Node<K, E> firstNode();
-
-        /**
-         * Next node.
-         * @param n the n
-         * @return the node
-         */
-        abstract Node<K, E> nextNode(Node<K, E> n);
-
-        /** Advance. */
-        private void advance() {
-            final Lock lock = lock_;
-            lock.lock();
-            try {
-                next = succ(next);
-                nextItem = isValid(next) ? next.getElement() : null;
-            } finally {
-                lock.unlock();
-            }
-        }
-
-        /**
-         * Checks if is valid.
-         * @param node the node
-         * @return true, if is valid
-         */
-        private final boolean isValid(final Node<K, E> node) {
-            return node != null && node.isReal();
-        }
-
-        /**
-         * Succ.
-         * @param n the n
-         * @return the node
-         */
-        private final Node<K, E> succ(Node<K, E> n) {
-            for (;;) {
-                final Node<K, E> s = nextNode(n);
-                if (!isValid(s)) return null;
-                else if (s.getElement() != null) return s;
-                else if (s == n) return firstNode();
-                else n = s;
-            }
-        }
-    }
-
-    /** The Class DescendingItr. */
-    private final class DescendingItr extends AbstractItr {
-        /**
-         * First node.
-         * @return the node
-         */
-        @Override Node<K, E> firstNode() {
-            return tail_.getBefore();
-        }
-
-        /**
-         * Next node.
-         * @param n the n
-         * @return the node
-         */
-        @Override Node<K, E> nextNode(final Node<K, E> n) {
-            return n.getBefore();
-        }
-    }
-
-    /** The Class Itr. */
-    private final class Itr extends AbstractItr {
-        /**
-         * First node.
-         * @return the node
-         */
-        @Override Node<K, E> firstNode() {
-            return head_.getAfter();
-        }
-
-        /**
-         * Next node.
-         * @param n the n
-         * @return the node
-         */
-        @Override Node<K, E> nextNode(final Node<K, E> n) {
-            return n.getAfter();
-        }
-    }
-
+    //
+    //    /** The Class AbstractItr. */
+    //    private abstract class AbstractItr implements Iterator<E> {
+    //        /** The next. */
+    //        private Node<K, E> next;
+    //        /** The next item. */
+    //        private E nextItem;
+    //        /** The last ret. */
+    //        private Node<K, E> lastRet;
+    //
+    //        /** Instantiates a new abstract itr. */
+    //        private AbstractItr() {
+    //            final Lock lock = lock_;
+    //            lock.lock();
+    //            try {
+    //                next = firstNode();
+    //                nextItem = isValid(next) ? next.getElement() : null;
+    //            } finally {
+    //                lock.unlock();
+    //            }
+    //        }
+    //
+    //        /**
+    //         * Checks for next.
+    //         * @return true, if successful
+    //         */
+    //        @Override public boolean hasNext() {
+    //            return isValid(next);
+    //        }
+    //
+    //        /**
+    //         * Next.
+    //         * @return the e
+    //         */
+    //        @Override public E next() {
+    //            if (!isValid(next)) throw new NoSuchElementException();
+    //            lastRet = next;
+    //            final E e = nextItem;
+    //            advance();
+    //            return e;
+    //        }
+    //
+    //        /** Removes the. */
+    //        @Override public void remove() {
+    //            final Node<K, E> n = lastRet;
+    //            if (isValid(n)) throw new IllegalStateException();
+    //            lastRet = null;
+    //            //            if (n.getElement() != null) removeLastOccurrence(n);
+    //        }
+    //
+    //        /**
+    //         * First node.
+    //         * @return the node
+    //         */
+    //        abstract Node<K, E> firstNode();
+    //
+    //        /**
+    //         * Next node.
+    //         * @param n the n
+    //         * @return the node
+    //         */
+    //        abstract Node<K, E> nextNode(Node<K, E> n);
+    //
+    //        /** Advance. */
+    //        private void advance() {
+    //            final Lock lock = lock_;
+    //            lock.lock();
+    //            try {
+    //                next = succ(next);
+    //                nextItem = isValid(next) ? next.getElement() : null;
+    //            } finally {
+    //                lock.unlock();
+    //            }
+    //        }
+    //
+    //        /**
+    //         * Checks if is valid.
+    //         * @param node the node
+    //         * @return true, if is valid
+    //         */
+    //        private final boolean isValid(final Node<K, E> node) {
+    //            return node != null && node.isReal();
+    //        }
+    //
+    //        /**
+    //         * Succ.
+    //         * @param n the n
+    //         * @return the node
+    //         */
+    //        private final Node<K, E> succ(Node<K, E> n) {
+    //            for (;;) {
+    //                final Node<K, E> s = nextNode(n);
+    //                if (!isValid(s)) return null;
+    //                else if (s.getElement() != null) return s;
+    //                else if (s == n) return firstNode();
+    //                else n = s;
+    //            }
+    //        }
+    //    }
+    //
+    //    /** The Class DescendingItr. */
+    //    private final class DescendingItr extends AbstractItr {
+    //        /**
+    //         * First node.
+    //         * @return the node
+    //         */
+    //        @Override Node<K, E> firstNode() {
+    //            return tail_.getBefore();
+    //        }
+    //
+    //        /**
+    //         * Next node.
+    //         * @param n the n
+    //         * @return the node
+    //         */
+    //        @Override Node<K, E> nextNode(final Node<K, E> n) {
+    //            return n.getBefore();
+    //        }
+    //    }
+    //
+    //    /** The Class Itr. */
+    //    private final class Itr extends AbstractItr {
+    //        /**
+    //         * First node.
+    //         * @return the node
+    //         */
+    //        @Override Node<K, E> firstNode() {
+    //            return head_.getAfter();
+    //        }
+    //
+    //        /**
+    //         * Next node.
+    //         * @param n the n
+    //         * @return the node
+    //         */
+    //        @Override Node<K, E> nextNode(final Node<K, E> n) {
+    //            return n.getAfter();
+    //        }
+    //    }
     /**
      * The listener interface for receiving doNothingEvent events. The class
      * that is interested in processing a doNothingEvent event implements this
@@ -1293,8 +1323,7 @@ class DqCollection<K, E extends IDqElement<K>>
      * @param <Y> the element type
      */
     private static final class Node<X, Y extends IDqElement<X>>
-            extends AtomicMarkableReference<Node<X, Y>>
-            implements Serializable {
+            extends AtomicMarkableReference<Node<X, Y>> implements Serializable {
         /** The Constant serialVersionUID. */
         private static final long serialVersionUID = -3008752467874171657L;
         /** The prev. */
@@ -1466,7 +1495,7 @@ class DqCollection<K, E extends IDqElement<K>>
          * @param node the exist node
          */
         final void gc() {
-            if (!isMarked()) return;
+            if (!isMarked() || !isDeleted()) return;
             setBefore(null);
             set(null, true);
         }
@@ -1575,8 +1604,7 @@ class DqCollection<K, E extends IDqElement<K>>
      * types and are handled in different ways, that can't nicely be captured by
      * placing field in a shared abstract class.
      */
-    private static class Index<I, J extends IDqElement<I>>
-            extends AtomicReference<Index<I, J>>
+    private static class Index<I, J extends IDqElement<I>> extends AtomicReference<Index<I, J>>
             implements Iterable<Node<I, J>>, Iterator<Node<I, J>> {
         /** The Constant serialVersionUID. */
         private static final long serialVersionUID = 6717821668181651376L;
