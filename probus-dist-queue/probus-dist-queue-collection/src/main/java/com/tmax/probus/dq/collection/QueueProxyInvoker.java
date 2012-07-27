@@ -72,7 +72,7 @@ public class QueueProxyInvoker<K, E extends IDqElement<K>>
 
     /** {@inheritDoc} */
     @Override public E peek() {
-        return queue_.peekFirst();
+        return queue_.getFirst();
     }
 
     /** {@inheritDoc} */

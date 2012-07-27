@@ -41,10 +41,22 @@ public interface IDqCollectionOperator<K, V> {
     V get(K key);
 
     /**
+     * Gets the first.
+     * @return the first
+     */
+    V getFirst();
+
+    /**
      * 아이디를 반환한다.
      * @return the id
      */
     String getId();
+
+    /**
+     * Gets the last.
+     * @return the last
+     */
+    V getLast();
 
     /**
      * 전체 노드중에서 특정 키를 가진 노드를 찾는다.
@@ -76,18 +88,6 @@ public interface IDqCollectionOperator<K, V> {
      * @return true, if successful
      */
     boolean linkLast(V value);
-
-    /**
-     * Peek first.
-     * @return the v
-     */
-    V peekFirst();
-
-    /**
-     * Peek last.
-     * @return the v
-     */
-    V peekLast();
 
     /**
      * Put solidly.
@@ -147,8 +147,40 @@ public interface IDqCollectionOperator<K, V> {
     V unlinkFirst();
 
     /**
+     * Unlink first.
+     * @param timeout the timeout
+     * @param unit the unit
+     * @return the v
+     * @throws InterruptedException the interrupted exception
+     */
+    V unlinkFirst(final long timeout, final TimeUnit unit) throws InterruptedException;
+
+    /**
+     * Take first.
+     * @return the v
+     * @throws InterruptedException the interrupted exception
+     */
+    V takeFirst() throws InterruptedException;
+
+    /**
      * Unlink last.
      * @return the v
      */
     V unlinkLast();
+
+    /**
+     * Unlink last.
+     * @param timeout the timeout
+     * @param unit the unit
+     * @return the v
+     * @throws InterruptedException the interrupted exception
+     */
+    V unlinkLast(final long timeout, final TimeUnit unit) throws InterruptedException;
+
+    /**
+     * Take last.
+     * @return the v
+     * @throws InterruptedException the interrupted exception
+     */
+    V takeLast() throws InterruptedException;
 }
