@@ -62,8 +62,7 @@ import java.util.logging.Logger;
  * @see java.util.concurrent.LinkedBlockingQueue
  * @see java.util.concurrent.LinkedBlockingDeque
  */
-class DqCollection<K, E extends IDqElement<K>>
-        implements IDqCollectionOperator<K, E>, Serializable {
+class DqCollection<K, E extends IDqElement<K>> implements IDqCollectionOperator<K, E>, Serializable {
     /** The Constant serialVersionUID. */
     private static final long serialVersionUID = 771471529351045470L;
     /** The Constant NANO_BASE. */
@@ -957,8 +956,7 @@ class DqCollection<K, E extends IDqElement<K>>
         try {
             E x;
             while ((x = unlinkFirstQ()) == null) {
-                if (nanos <= 0)
-                    return null;
+                if (nanos <= 0) return null;
                 nanos = notEmpty_.awaitNanos(nanos);
             }
             return x;
@@ -989,8 +987,7 @@ class DqCollection<K, E extends IDqElement<K>>
         try {
             E x;
             while ((x = unlinkLastQ()) == null) {
-                if (nanos <= 0)
-                    return null;
+                if (nanos <= 0) return null;
                 nanos = notEmpty_.awaitNanos(nanos);
             }
             return x;
@@ -1098,6 +1095,30 @@ class DqCollection<K, E extends IDqElement<K>>
                 return p.getElement();
             }
         }
+    }
+
+    /** {@inheritDoc} */
+    @Override public E restoreToFirst(K key) {
+        if (key == null) throw new NullPointerException();
+        Node<K, E> node = findNode(key);
+        if (node != null && node != NULL_NODE && !node.isReal() && !node.isDeleted()) {
+            node.setReal();
+            linkFirstQ(node);
+            return node.getElement();
+        }
+        return null;
+    }
+
+    /** {@inheritDoc} */
+    @Override public E restoreToLast(K key) {
+        if (key == null) throw new NullPointerException();
+        Node<K, E> node = findNode(key);
+        if (node != null && node != NULL_NODE && !node.isReal() && !node.isDeleted()) {
+            node.setReal();
+            linkLastQ(node);
+            return node.getElement();
+        }
+        return null;
     }
 
     /**
@@ -1362,10 +1383,15 @@ class DqCollection<K, E extends IDqElement<K>>
             before_ = new AtomicReference<Node<X, Y>>(pre);
         }
 
-        private final boolean setMark(Node<X, Y> expect) {
+        private final boolean notReal(Node<X, Y> expect) {
             final boolean marked = attemptMark(expect, true);
             if (marked) stampTime();
             return marked;
+        }
+
+        private final void setReal() {
+            timestamp = -1L;
+            set(null, false);
         }
 
         private final boolean casAfter(Node<X, Y> expect, Node<X, Y> node) {
@@ -1385,7 +1411,7 @@ class DqCollection<K, E extends IDqElement<K>>
             while (true) {
                 if (isMarked()) return false;
                 nextNode = getAfter();
-                if (setMark(nextNode)) break;
+                if (notReal(nextNode)) break;
             }
             nextNode.predecessor();
             return true;
