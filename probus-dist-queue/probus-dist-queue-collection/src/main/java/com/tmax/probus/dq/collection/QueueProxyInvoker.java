@@ -15,8 +15,6 @@ package com.tmax.probus.dq.collection;
 
 import static java.util.logging.Level.*;
 
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
@@ -29,13 +27,11 @@ import java.util.logging.Logger;
  *
  */
 public class QueueProxyInvoker<K, E extends IDqElement<K>>
-        implements InvocationHandler, BlockingQueue<E> {
-    /**
-     * Logger for this class
-     */
+        implements BlockingQueue<E>, IDqCollection<K, E> {
+    /** Logger for this class */
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.dq.collection");
-    /**  */
-    private DqCollection<K, E> queue_;
+    /** The queue_. */
+    private IDqCollectionOperator<K, E> queue_;
 
     /**
      * @param newCollection
@@ -46,8 +42,13 @@ public class QueueProxyInvoker<K, E extends IDqElement<K>>
     }
 
     /** {@inheritDoc} */
-    @Override public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        return method.invoke(proxy, args);
+    @Override public void setOperator(IDqCollectionOperator<K, E> operator) {
+        queue_ = operator;
+    }
+
+    /** {@inheritDoc} */
+    @Override public IDqCollectionOperator<K, E> getOperator() {
+        return queue_;
     }
 
     /** {@inheritDoc} */

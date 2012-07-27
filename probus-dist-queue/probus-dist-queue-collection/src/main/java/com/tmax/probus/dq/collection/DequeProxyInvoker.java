@@ -13,28 +13,19 @@
 package com.tmax.probus.dq.collection;
 
 
-import static java.util.logging.Level.*;
-
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Logger;
 
 
 /**
  *
  */
 class DequeProxyInvoker<K, E extends IDqElement<K>>
-        implements InvocationHandler, BlockingDeque<E> {
-    /**
-     * Logger for this class
-     */
-    private final transient Logger logger = Logger.getLogger("com.tmax.probus.dq.collection");
+        implements BlockingDeque<E>, IDqCollection<K, E> {
     /**  */
-    private DqCollection<K, E> deque_;
+    private IDqCollectionOperator<K, E> deque_;
 
     /**
      * @param newCollection
@@ -42,6 +33,16 @@ class DequeProxyInvoker<K, E extends IDqElement<K>>
      */
     public DequeProxyInvoker(DqCollection<K, E> newCollection) {
         deque_ = newCollection;
+    }
+
+    /** {@inheritDoc} */
+    @Override public void setOperator(IDqCollectionOperator<K, E> operator) {
+        deque_ = operator;
+    }
+
+    /** {@inheritDoc} */
+    @Override public IDqCollectionOperator<K, E> getOperator() {
+        return deque_;
     }
 
     /** {@inheritDoc} */
@@ -289,10 +290,5 @@ class DequeProxyInvoker<K, E extends IDqElement<K>>
 
     /** {@inheritDoc} */
     @Override public void push(E e) {
-    }
-
-    /** {@inheritDoc} */
-    @Override public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        return null;
     }
 }

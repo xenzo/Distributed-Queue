@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentMap;
 /**
  * A factory for creating DqCollection objects.
  * @author Kim, Dong iL
- * @see IDqSolidOperator
+ * @see IDqCollectionOperator
  * @see DqMap
  * @see IDqStack
  * @see IDqElement
@@ -45,7 +45,7 @@ public class DqCollections<K, E extends IDqElement<K>> {
         Stack(java.util.Stack.class),
         ConcurrentMap(java.util.concurrent.ConcurrentMap.class),
         ConcurrentNavigableMap(java.util.concurrent.ConcurrentNavigableMap.class),
-        SolidOperator(IDqSolidOperator.class);
+        SolidOperator(IDqCollectionOperator.class);
         private Types(Class<?> claz) {
             claz_ = claz;
         }

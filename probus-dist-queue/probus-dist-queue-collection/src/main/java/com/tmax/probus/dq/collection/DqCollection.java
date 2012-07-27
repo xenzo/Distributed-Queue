@@ -63,7 +63,7 @@ import java.util.logging.Logger;
  * @see java.util.concurrent.LinkedBlockingDeque
  */
 class DqCollection<K, E extends IDqElement<K>>
-        implements IDqSolidOperator<K, E>, Serializable {
+        implements IDqCollectionOperator<K, E>, Serializable {
     /** The Constant serialVersionUID. */
     private static final long serialVersionUID = 771471529351045470L;
     /** The Constant NANO_BASE. */

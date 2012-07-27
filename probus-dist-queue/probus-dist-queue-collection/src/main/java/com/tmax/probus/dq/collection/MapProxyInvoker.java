@@ -13,8 +13,6 @@
 package com.tmax.probus.dq.collection;
 
 
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Map;
@@ -24,9 +22,9 @@ import java.util.concurrent.ConcurrentNavigableMap;
 
 
 class MapProxyInvoker<K, E extends IDqElement<K>>
-        implements InvocationHandler, ConcurrentNavigableMap<K, E> {
+        implements ConcurrentNavigableMap<K, E>, IDqCollection<K, E> {
     /**  */
-    private DqCollection<K, E> map_;
+    private IDqCollectionOperator<K, E> map_;
 
     /**
      * @param newCollection
@@ -37,8 +35,13 @@ class MapProxyInvoker<K, E extends IDqElement<K>>
     }
 
     /** {@inheritDoc} */
-    @Override public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        return method.invoke(proxy, args);
+    @Override public void setOperator(IDqCollectionOperator<K, E> operator) {
+        map_ = operator;
+    }
+
+    /** {@inheritDoc} */
+    @Override public IDqCollectionOperator<K, E> getOperator() {
+        return map_;
     }
 
     /** {@inheritDoc} */

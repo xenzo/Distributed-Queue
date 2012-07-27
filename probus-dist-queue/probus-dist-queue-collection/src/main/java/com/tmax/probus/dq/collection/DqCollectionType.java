@@ -22,7 +22,7 @@ public enum DqCollectionType {
     Map(java.util.Map.class),
     ConcurrentMap(java.util.concurrent.ConcurrentMap.class),
     ConcurrentNavigableMap(java.util.concurrent.ConcurrentNavigableMap.class),
-    SolidOperator(IDqSolidOperator.class);
+    SolidOperator(IDqCollectionOperator.class);
     private DqCollectionType(Class<?> claz) {
         claz_ = claz;
     }

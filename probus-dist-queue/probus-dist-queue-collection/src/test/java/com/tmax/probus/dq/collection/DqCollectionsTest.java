@@ -38,7 +38,7 @@ public class DqCollectionsTest {
     /** Logger for this class */
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.dq.collection");
     private static IDqDeque<String, Elem> deque;
-    private static IDqSolidOperator<String, Elem> operator;
+    private static IDqCollectionOperator<String, Elem> operator;
 
     @BeforeClass public static void startUp() {
     }
