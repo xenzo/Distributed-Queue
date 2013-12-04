@@ -20,17 +20,18 @@ import java.net.Socket;
 import java.nio.channels.SelectionKey;
 import java.util.logging.Logger;
 
+import com.tmax.nio.AbstractReactor;
+import com.tmax.nio.api.IReactHandler;
+import com.tmax.nio.api.IReactor;
 import com.tmax.probus.dq.DqNode;
 import com.tmax.probus.dq.api.IDqIoEventListener;
-import com.tmax.probus.dq.api.IDqReactor;
 import com.tmax.probus.dq.api.IDqSession;
-import com.tmax.probus.dq.nio.AbstractDqReactor;
 
 
 /**
  *
  */
-public class DqIoReactor extends AbstractDqReactor {
+public class DqIoReactor extends AbstractReactor {
     /**
      * Logger for this class
      */
@@ -51,7 +52,8 @@ public class DqIoReactor extends AbstractDqReactor {
 
     // (non-Javadoc)
     // @see com.tmax.probus.dq.nio.DqReactorBase#createSelectionHandler()
-    @Override public IDqReactorHandler createSelectionHandler() {
+    @Override
+    public IReactHandler createSelectionHandler() {
         return new ReadHandler();
     }
 
@@ -63,9 +65,7 @@ public class DqIoReactor extends AbstractDqReactor {
         return node_;
     }
 
-    // (non-Javadoc)
-    // @see com.tmax.probus.dq.api.IDqReactor#initSocket(java.net.Socket)
-    @Override public void initSocket(final Socket socket) {
+    public void initSocket(final Socket socket) {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "initSocket");
         // XXX must do something
         if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "initSocket");
@@ -73,7 +73,8 @@ public class DqIoReactor extends AbstractDqReactor {
 
     // (non-Javadoc)
     // @see com.tmax.probus.dq.nio.AbstractDqReactor#createSession()
-    @Override protected IDqSession createSession() {
+    @Override
+    protected IDqSession createSession() {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "createSession");
         // XXX must do something
         return null;
@@ -87,7 +88,8 @@ public class DqIoReactor extends AbstractDqReactor {
 
     // (non-Javadoc)
     // @see com.tmax.probus.dq.nio.AbstractDqReactor#getIoReactor()
-    @Override protected IDqReactor getIoReactor() {
+    @Override
+    protected IReactor getIoReactor() {
         if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "getIoReactor");
         // XXX must do something
         return getNode().clientInfo().getIoReactor();
@@ -95,17 +97,19 @@ public class DqIoReactor extends AbstractDqReactor {
 
     // (non-Javadoc)
     // @see com.tmax.probus.dq.nio.DqReactorBase#getSelectTimeout()
-    @Override protected long getSelectTimeout() {
+    @Override
+    protected long getSelectTimeout() {
         return getNode().serverInfo().getSelectTimeout();
     }
 
     /**
      * The Class ReadHandler.
      */
-    private class ReadHandler implements IDqReactorHandler {
+    private class ReadHandler implements IReactHandler {
         // (non-Javadoc)
         // @see com.tmax.probus.dq.api.IDqReactor.IDqReactorHandler#handleAccept(java.nio.channels.SelectionKey)
-        @Override public void handleAccept(final SelectionKey key) {
+        @Override
+        public void handleAccept(final SelectionKey key) {
             if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "handleAccept");
             // XXX must do something
             if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "handleAccept");
@@ -113,7 +117,8 @@ public class DqIoReactor extends AbstractDqReactor {
 
         // (non-Javadoc)
         // @see com.tmax.probus.dq.api.IDqReactor.IDqReactorHandler#handleRead(java.nio.channels.SelectionKey)
-        @Override public void handleRead(final SelectionKey key) {
+        @Override
+        public void handleRead(final SelectionKey key) {
             if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "handleRead");
             // XXX must do something
             listener_.messageReceived(key);
@@ -122,7 +127,8 @@ public class DqIoReactor extends AbstractDqReactor {
 
         // (non-Javadoc)
         // @see com.tmax.probus.dq.api.IDqReactor.IDqReactorHandler#handleWrite(java.nio.channels.SelectionKey)
-        @Override public void handleWrite(final SelectionKey key) {
+        @Override
+        public void handleWrite(final SelectionKey key) {
             if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "handleWrite");
             // XXX must do something
             listener_.messageSending(key);
@@ -131,7 +137,8 @@ public class DqIoReactor extends AbstractDqReactor {
 
         // (non-Javadoc)
         // @see com.tmax.probus.dq.api.IDqReactor.IDqReactorHandler#handleConnect(java.nio.channels.SelectionKey)
-        @Override public void handleConnect(SelectionKey key) {
+        @Override
+        public void handleConnect(SelectionKey key) {
             if (logger.isLoggable(FINER)) logger.entering(getClass().getName(), "handleConnect");
             // XXX must do something
             if (logger.isLoggable(FINER)) logger.exiting(getClass().getName(), "handleConnect");

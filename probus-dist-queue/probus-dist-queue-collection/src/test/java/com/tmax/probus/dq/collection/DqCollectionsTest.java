@@ -73,7 +73,7 @@ public class DqCollectionsTest {
     @Test public void testPoll() {
         Elem poll = deque.poll();
         assertEquals("A", poll.getIdentifier());
-        assertEquals(3, deque.size());
+        assertEquals(3, deque.realCount());
         assertEquals(4, operator.sizeSolidly());
         deque.poll();
         deque.poll();
@@ -83,7 +83,7 @@ public class DqCollectionsTest {
             fail();
         } catch (Throwable t) {
         }
-        assertEquals(0, deque.size());
+        assertEquals(0, deque.realCount());
         try {
             assertNull(deque.poll(1, TimeUnit.SECONDS));
         } catch (InterruptedException ex) {
@@ -101,7 +101,7 @@ public class DqCollectionsTest {
         deque.add(new Elem("E"));
         deque.add(new Elem("F"));
         deque.add(new Elem("G"));
-        assertEquals(7, deque.size());
+        assertEquals(7, deque.realCount());
         assertEquals(7, operator.sizeSolidly());
     }
 
@@ -111,17 +111,17 @@ public class DqCollectionsTest {
 
     @Test public void testRemoveSolid() {
         operator.removeSolidly("C");
-        assertEquals(3, deque.size());
+        assertEquals(3, deque.realCount());
         assertEquals(3, operator.sizeSolidly());
     }
 
     @Test public void testPollFirstLast() {
         operator.removeSolidly("A");
-        assertEquals(3, deque.size());
+        assertEquals(3, deque.realCount());
         assertEquals(3, operator.sizeSolidly());
         //        assertEquals("B", operator.putSolidly("B", new Elem("B")).getIdentifier());
-        assertEquals("D", deque.pollLast().getIdentifier());
-        assertEquals("B", deque.pollFirst().getIdentifier());
+        assertEquals("D", deque.doPollLast().getIdentifier());
+        assertEquals("B", deque.doPollFirst().getIdentifier());
     }
 
     @Test public void testConcurrency() {
@@ -172,7 +172,7 @@ public class DqCollectionsTest {
             logger.log(WARNING, "" + ex.getMessage(), ex);
         }
         assertEquals(5000, a.intValue());
-        assertEquals(4, deque.size());
+        assertEquals(4, deque.realCount());
         assertEquals(5004, operator.sizeSolidly());
     }
 

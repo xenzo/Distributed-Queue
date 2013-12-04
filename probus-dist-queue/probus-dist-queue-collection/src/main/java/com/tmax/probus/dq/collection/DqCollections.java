@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentMap;
  */
 public class DqCollections<K, E extends IDqElement<K>> {
     private DqCollection<K, E> newCollection(String id) {
-        return new DqCollection<K, E>(id, null, 0, null);
+        return new DqCollection<>(id, null, null);
     }
 
     public ConcurrentMap<K, E> createConcurrentMap() {

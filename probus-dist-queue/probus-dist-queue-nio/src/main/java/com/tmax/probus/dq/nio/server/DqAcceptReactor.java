@@ -25,16 +25,17 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
 
+import com.tmax.nio.AbstractReactor;
+import com.tmax.nio.api.IReactHandler;
+import com.tmax.nio.api.IReactor;
 import com.tmax.probus.dq.DqNode;
-import com.tmax.probus.dq.api.IDqReactor;
 import com.tmax.probus.dq.api.IDqSession;
-import com.tmax.probus.dq.nio.AbstractDqReactor;
 
 
 /**
  * The Class DqAcceptor.
  */
-public class DqAcceptReactor extends AbstractDqReactor {
+public class DqAcceptReactor extends AbstractReactor {
     /** Logger for this class. */
     private final transient Logger logger = Logger.getLogger("com.tmax.probus.dq.nio");
     /** The node_. */
@@ -65,7 +66,7 @@ public class DqAcceptReactor extends AbstractDqReactor {
             @Override public void run() {
                 try {
                     serverChannel.socket().bind(socketAddress);
-                    register(serverChannel, SelectionKey.OP_ACCEPT);
+                    registerChannel(serverChannel, SelectionKey.OP_ACCEPT);
                 } catch (final IOException ex) {
                     logger.log(WARNING, "" + ex.getMessage(), ex);
                 }
@@ -103,7 +104,7 @@ public class DqAcceptReactor extends AbstractDqReactor {
         }
         addPendingJob(new Runnable() {
             @Override public void run() {
-                final SelectionKey key = serverSocketChannel.keyFor(getSelector());
+                final SelectionKey key = serverSocketChannel.keyFor(selector());
                 if (key != null) key.cancel();
             }
         });
@@ -120,7 +121,7 @@ public class DqAcceptReactor extends AbstractDqReactor {
 
     // (non-Javadoc)
     // @see com.tmax.probus.dq.nio.AbstractDqReactor#getIoReactor()
-    @Override protected IDqReactor getIoReactor() {
+    @Override protected IReactor getIoReactor() {
         return getNode().serverInfo().getIoReactor();
     }
 
@@ -132,14 +133,14 @@ public class DqAcceptReactor extends AbstractDqReactor {
 
     // (non-Javadoc)
     // @see com.tmax.probus.dq.api.IDqReactor#createSelectionHandler()
-    @Override public IDqReactorHandler createSelectionHandler() {
+    @Override public IReactHandler createSelectionHandler() {
         return new AcceptHandler();
     }
 
     /**
      * The Class AcceptHandler.
      */
-    public class AcceptHandler implements IDqReactorHandler {
+    public class AcceptHandler implements IReactHandler {
         // (non-Javadoc)
         // @see com.tmax.probus.dq.api.IDqReactor.IDqReactorHandler#handleAccept(java.nio.channels.SelectionKey)
         @Override public void handleAccept(SelectionKey key) {
@@ -156,7 +157,7 @@ public class DqAcceptReactor extends AbstractDqReactor {
                     session = (IDqSession) key.attachment();
                     final IDqSession fSession = session;
                     initSocket(channel.socket());
-                    final IDqReactor reactor = getIoReactor();
+                    final IReactor reactor = getIoReactor();
                     reactor.addPendingJob(new Runnable() {
                         @Override public void run() {
                             try {

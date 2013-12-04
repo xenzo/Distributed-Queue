@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
-import com.tmax.probus.dq.api.IDqReactor;
+import com.tmax.nio.api.IReactor;
 import com.tmax.probus.dq.nio.server.DqIoReactor;
 
 
@@ -32,11 +32,11 @@ public class DqServerInfo {
     /** The i next_. */
     private int iNext_ = 0;
     /** The io reactor_. */
-    private IDqReactor ioReactor_;
+    private IReactor ioReactor_;
     /** The io reactor executor. */
     private Executor ioReactorExecutor;
     /** The io reactors_. */
-    private List<IDqReactor> ioReactors_;
+    private List<IReactor> ioReactors_;
     /** The n io reactor_. */
     private int nIoReactor_;
     /** The n worker_. */
@@ -67,7 +67,7 @@ public class DqServerInfo {
      * Gets the io reactor.
      * @return the io reactor
      */
-    public IDqReactor getIoReactor() {
+    public IReactor getIoReactor() {
         final int next = iNext_++;
         if (next < ioReactors_.size()) return ioReactors_.get(next);
         else return getIoReactor();
@@ -120,9 +120,9 @@ public class DqServerInfo {
     private void initIoSelectors() throws IOException {
         final int nReactor = getIoReactorCount();
         ioReactorExecutor = Executors.newFixedThreadPool(nReactor);
-        ioReactors_ = new ArrayList<IDqReactor>(nReactor);
+        ioReactors_ = new ArrayList<IReactor>(nReactor);
         for (int i = 0; i < nReactor; i++) {
-            final IDqReactor reactor = new DqIoReactor(dqNode_);
+            final IReactor reactor = new DqIoReactor(dqNode_);
             ioReactors_.add(reactor);
             ioReactorExecutor.execute(reactor);
         }
