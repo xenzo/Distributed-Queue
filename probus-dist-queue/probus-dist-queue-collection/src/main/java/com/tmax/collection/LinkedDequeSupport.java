@@ -148,7 +148,7 @@ class LinkedDequeSupport<V> {
         private volatile Node<E> _prev;
         /** The element. */
         private final E _element;
-        /** The is real. */
+        /** whether real node */
         private final AtomicBoolean _isReal;
         /** The poll time. */
         private transient long _pollTime = -1L;
